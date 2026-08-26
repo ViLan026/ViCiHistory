@@ -5,12 +5,10 @@ import re
 
 from app.config import settings
 from app.prompts.claim_extraction import build_claim_extraction_prompt
-from app.prompts.verification import build_verification_prompt
 from app.schemas.verification import (
-    ClaimResult,
+    ClaimEvidenceResult,
+    EvidenceMapResponse,
     ExtractedClaim,
-    VerificationLabel,
-    VerifyResponse,
 )
 from app.services.gemini import GeminiService
 from app.services.retrieval import RetrievalService
@@ -31,113 +29,67 @@ class VerificationService:
         self._retrieval_service = retrieval_service
 
     @staticmethod
-    def _claim_key(claim: str) -> str:
-        value = _WHITESPACE_PATTERN.sub(" ", claim.strip())
-        value = _END_PUNCTUATION_PATTERN.sub("", value)
-        return value.casefold()
+    def _normalize_claim_key(claim: str) -> str:
+        normalized = _WHITESPACE_PATTERN.sub(" ", claim.strip())
+        normalized = _END_PUNCTUATION_PATTERN.sub("", normalized)
+
+        return normalized.casefold()
 
     def extract_claims(self, content: str) -> list[ExtractedClaim]:
-        output = self._gemini_service.extract_claims(
-            build_claim_extraction_prompt(content)
-        )
+        prompt = build_claim_extraction_prompt(content)
+        output = self._gemini_service.extract_claims(prompt)
 
         seen: set[str] = set()
-        results: list[ExtractedClaim] = []
+        claims: list[ExtractedClaim] = []
 
         for item in output.claims:
             claim = _WHITESPACE_PATTERN.sub(" ", item.claim.strip())
-            source_text = _WHITESPACE_PATTERN.sub(" ", item.source_text.strip())
-            key = self._claim_key(claim)
+            source_text = item.source_text.strip()
 
-            if not claim or not source_text or not key or key in seen:
+            if not claim or not source_text:
                 continue
 
-            seen.add(key)
-            results.append(ExtractedClaim(source_text=source_text, claim=claim))
+            normalized_key = self._normalize_claim_key(claim)
 
-            if len(results) >= settings.MAX_CLAIMS_PER_INPUT:
-                break
-
-        return results
-
-    @staticmethod
-    def _format_evidence_for_prompt(evidence) -> str:
-        sections: list[str] = []
-
-        for index, item in enumerate(evidence, start=1):
-            text = item.text.strip()[: settings.MAX_EVIDENCE_CHARS]
-            if not text:
+            if not normalized_key or normalized_key in seen:
                 continue
 
-            book_name = item.book_name or "Không rõ tên sách"
-            pages = ", ".join(str(page) for page in item.pages) if item.pages else "Không xác định"
+            seen.add(normalized_key)
 
-            sections.append(
-                "\n".join(
-                    [
-                        f"<EVIDENCE_{index}>",
-                        f"Sách: {book_name}",
-                        f"Trang: {pages}",
-                        "Nội dung:",
-                        text,
-                        f"</EVIDENCE_{index}>",
-                    ]
+            claims.append(
+                ExtractedClaim(
+                    source_text=source_text,
+                    claim=claim,
                 )
             )
 
-        return "\n\n".join(sections)
+            if len(claims) >= settings.MAX_CLAIMS_PER_INPUT:
+                break
 
-    def _check_claim(self, item: ExtractedClaim, claim_id: str) -> ClaimResult:
-        evidence = self._retrieval_service.retrieve(item.claim)
+        logger.info("Extracted %d historical claim(s).", len(claims))
 
-        if not evidence:
-            return ClaimResult(
-                id=claim_id,
-                source_text=item.source_text,
-                claim=item.claim,
-                label=VerificationLabel.NOT_ENOUGH_EVIDENCE,
-                explanation=(
-                    "Chưa có đủ thông tin trong nguồn sử liệu hiện có để xác nhận "
-                    "hoặc bác bỏ nội dung này."
-                ),
-                evidence=[],
+        return claims
+
+    def build_evidence_map(self, content: str) -> EvidenceMapResponse:
+        extracted_claims = self.extract_claims(content)
+
+        if not extracted_claims:
+            return EvidenceMapResponse(claims=[])
+
+        results: list[ClaimEvidenceResult] = []
+
+        for index, item in enumerate(extracted_claims, start=1):
+            logger.info("Retrieving evidence for claim: %s", item.claim[:100])
+
+            evidence = self._retrieval_service.retrieve(item.claim)
+
+            results.append(
+                ClaimEvidenceResult(
+                    id=f"claim_{index}",
+                    source_text=item.source_text,
+                    claim=item.claim,
+                    evidence=evidence,
+                )
             )
 
-        evidence_text = self._format_evidence_for_prompt(evidence)
-        if not evidence_text:
-            return ClaimResult(
-                id=claim_id,
-                source_text=item.source_text,
-                claim=item.claim,
-                label=VerificationLabel.NOT_ENOUGH_EVIDENCE,
-                explanation=(
-                    "Chưa có đủ thông tin trong nguồn sử liệu hiện có để xác nhận "
-                    "hoặc bác bỏ nội dung này."
-                ),
-                evidence=[],
-            )
-
-        verification = self._gemini_service.verify_claim(
-            build_verification_prompt(item.claim, evidence_text)
-        )
-
-        return ClaimResult(
-            id=claim_id,
-            source_text=item.source_text,
-            claim=item.claim,
-            label=verification.label,
-            explanation=verification.explanation.strip(),
-            evidence=evidence,
-        )
-
-    def verify(self, content: str) -> VerifyResponse:
-        extracted = self.extract_claims(content)
-        if not extracted:
-            return VerifyResponse(claims=[])
-
-        claims: list[ClaimResult] = []
-        for index, item in enumerate(extracted, start=1):
-            logger.info("Verifying claim %d/%d", index, len(extracted))
-            claims.append(self._check_claim(item, f"claim_{index}"))
-
-        return VerifyResponse(claims=claims)
+        return EvidenceMapResponse(claims=results)
