@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
+import time
 
 from sentence_transformers import SentenceTransformer
 
@@ -20,8 +21,14 @@ class EmbeddingService:
         self._model = SentenceTransformer(
             settings.EMBEDDING_MODEL,
             token=settings.HF_TOKEN,
+            local_files_only=True,
         )
-        logger.info("Embedding model loaded successfully.")
+
+        start = time.perf_counter()
+        logger.info(
+            "Embedding model loaded successfully in %.2fs.",
+            time.perf_counter() - start,
+        )
 
     def embed_text(self, text: str) -> list[float]:
         text = text.strip()

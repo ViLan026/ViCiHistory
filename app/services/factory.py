@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import logging
+import time
 
 from app.services.embedding import EmbeddingService
 from app.services.gemini import GeminiService
@@ -9,6 +11,7 @@ from app.services.retrieval import RetrievalService
 from app.services.storage import StorageService
 from app.services.verification import VerificationService
 
+logger = logging.getLogger(__name__)
 
 @dataclass
 class ServiceContainer:
@@ -21,6 +24,9 @@ class ServiceContainer:
 
 
 def build_services() -> ServiceContainer:
+
+    start = time.perf_counter()
+    
     embedding = EmbeddingService()
     qdrant = QdrantService()
     retrieval = RetrievalService(
@@ -33,6 +39,11 @@ def build_services() -> ServiceContainer:
         retrieval_service=retrieval,
     )
     storage = StorageService()
+
+    logger.info(
+        "All services initialized in %.2fs.",
+        time.perf_counter() - start,
+    )
 
     return ServiceContainer(
         gemini=gemini,
