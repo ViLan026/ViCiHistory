@@ -9,14 +9,16 @@ import fitz
 from google.cloud import storage
 
 from app.schemas.source_view_schema import HighlightRect, SourcePage, SourceWord
+from app.data.sources import HISTORICAL_SOURCES
 
 logger = logging.getLogger(__name__)
 
 SOURCE_CONFIG = {
-    "dvsk": {"blob": "books/DVSK.pdf", "offset": 0},
-    "kdvstgcm": {"blob": "books/KDVSTGCM.pdf", "offset": 0},
-    "vstt": {"blob": "books/VSTT.pdf", "offset": 0},
-    "vtt": {"blob": "books/VTT.pdf", "offset": 2},
+    source["source_id"]: {
+        "blob": source["object_name"],
+        "offset": source.get("offset", 0),
+    }
+    for source in HISTORICAL_SOURCES.values()
 }
 
 TOKEN_PATTERN = re.compile(r"[\wÀ-ỹĐđ]+", re.UNICODE)

@@ -18,16 +18,32 @@ class EmbeddingService:
             os.environ.setdefault("HUGGING_FACE_HUB_TOKEN", settings.HF_TOKEN)
 
         logger.info("Loading embedding model: %s", settings.EMBEDDING_MODEL)
+        start = time.perf_counter()
+
         self._model = SentenceTransformer(
             settings.EMBEDDING_MODEL,
             token=settings.HF_TOKEN,
             local_files_only=True,
         )
 
-        start = time.perf_counter()
         logger.info(
             "Embedding model loaded successfully in %.2fs.",
             time.perf_counter() - start,
+        )
+
+        warmup_start = time.perf_counter()
+
+        logger.info("Warming up embedding model.")
+
+        self._model.encode(
+            ["Khởi động hệ thống truy xuất lịch sử."],
+            normalize_embeddings=True,
+            show_progress_bar=False,
+        )
+
+        logger.info(
+            "Embedding model warm-up completed in %.2fs.",
+            time.perf_counter() - warmup_start,
         )
 
     def embed_text(self, text: str) -> list[float]:
