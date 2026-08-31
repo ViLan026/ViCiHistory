@@ -40,6 +40,9 @@ class Settings(BaseSettings):
 
     # Pipeline
     TOP_K: int = Field(default=5, gt=0, le=20)
+    RETRIEVAL_CANDIDATE_K: int = Field(default=20, gt=0, le=100)
+    HYBRID_ALPHA: float = Field(default=0.5, ge=0.0, le=1.0)
+
     MAX_CLAIMS_PER_INPUT: int = Field(default=8, gt=0, le=20)
     MAX_INPUT_CHARS: int = Field(default=12_000, gt=0)
     MAX_EVIDENCE_CHARS: int = Field(default=2_500, gt=0)

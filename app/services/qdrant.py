@@ -118,3 +118,60 @@ class QdrantService:
             )
  
         return items
+
+    def scroll_all(self) -> list[EvidenceItem]:
+        items: list[EvidenceItem] = []
+        offset = None
+
+        while True:
+            points, offset = self._client.scroll(
+                collection_name=self._collection,
+                limit=1000,
+                offset=offset,
+                with_payload=True,
+                with_vectors=False,
+            )
+
+            for point in points:
+                payload = point.payload or {}
+                text = _safe_str(payload.get("raw_text") or payload.get("overlap_text")).strip()
+                chunk_id = str(point.id)
+
+                if not text:
+                    continue
+
+                book_name_text = _safe_str(payload.get("book_name")).strip()
+
+                source_id = None
+                if book_name_text and book_name_text in HISTORICAL_SOURCES:
+                    source_id = HISTORICAL_SOURCES[book_name_text]["source_id"]
+
+                headers_raw = payload.get("headers")
+                headers = None
+
+                if isinstance(headers_raw, dict):
+                    headers = {
+                        str(key): str(value)
+                        for key, value in headers_raw.items()
+                    }
+
+                footnotes_raw = payload.get("footnotes")
+
+                items.append(
+                    EvidenceItem(
+                        chunk_id=chunk_id,
+                        score=None,
+                        book_name=book_name_text,
+                        source_id=source_id,
+                        pages=_safe_list_int(payload.get("pages")),
+                        text=text,
+                        headers=headers,
+                        footnotes=footnotes_raw if isinstance(footnotes_raw, dict) else None,
+                    )
+                )
+
+            if offset is None:
+                break
+
+        logger.info("Loaded %d Qdrant documents for BM25.", len(items))
+        return items

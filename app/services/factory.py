@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import logging
 import time
+from app.services.bm25 import BM25Service
 
 from app.services.embedding import EmbeddingService
 from app.services.gemini import GeminiService
@@ -29,10 +30,16 @@ def build_services() -> ServiceContainer:
     
     embedding = EmbeddingService()
     qdrant = QdrantService()
+
+    documents = qdrant.scroll_all()
+    bm25 = BM25Service(documents)
+
     retrieval = RetrievalService(
         embedding_service=embedding,
         qdrant_service=qdrant,
+        bm25_service=bm25,
     )
+
     gemini = GeminiService()
     verifier = VerificationService(
         gemini_service=gemini,
