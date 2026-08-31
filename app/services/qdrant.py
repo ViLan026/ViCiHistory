@@ -9,6 +9,8 @@ from app.config import settings
 from app.exceptions import RetrievalServiceError
 from app.schemas.verification import EvidenceItem
 
+from app.data.sources import HISTORICAL_SOURCES
+
 logger = logging.getLogger(__name__)
 
 
@@ -84,6 +86,13 @@ class QdrantService:
                 fallback=str(point.id),
             )
             book_name_text = _safe_str(payload.get("book_name")).strip()
+            book_name = book_name_text or None
+
+            source_id = None
+
+            if book_name and book_name in HISTORICAL_SOURCES:
+                source_id = HISTORICAL_SOURCES[book_name]["source_id"]
+
             headers_raw = payload.get("headers")
             headers: dict[str, str] | None = None
 
@@ -99,7 +108,8 @@ class QdrantService:
                 EvidenceItem(
                     chunk_id=chunk_id or None,
                     score=_safe_float(getattr(point, "score", None)),
-                    book_name=book_name_text or None,
+                    book_name=book_name_text, 
+                    source_id=source_id,
                     pages=_safe_list_int(payload.get("pages")),
                     text=text,
                     headers=headers,

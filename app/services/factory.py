@@ -6,6 +6,7 @@ from app.services.embedding import EmbeddingService
 from app.services.gemini import GeminiService
 from app.services.qdrant import QdrantService
 from app.services.retrieval import RetrievalService
+from app.services.storage import StorageService
 from app.services.verification import VerificationService
 
 
@@ -13,6 +14,7 @@ from app.services.verification import VerificationService
 class ServiceContainer:
     gemini: GeminiService
     verifier: VerificationService
+    storage: StorageService
 
     def close(self) -> None:
         self.gemini.close()
@@ -30,4 +32,10 @@ def build_services() -> ServiceContainer:
         gemini_service=gemini,
         retrieval_service=retrieval,
     )
-    return ServiceContainer(gemini=gemini, verifier=verifier)
+    storage = StorageService()
+
+    return ServiceContainer(
+        gemini=gemini,
+        verifier=verifier,
+        storage=storage,
+    )

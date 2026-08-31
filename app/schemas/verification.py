@@ -33,6 +33,7 @@ class EvidenceItem(BaseModel):
     headers: dict[str, str] | None = None
     footnotes: dict[str, Any] | None = None
     token_count: int | None = None
+    source_id: str | None = None
 
 
 class ExtractedClaim(BaseModel):
@@ -63,4 +64,11 @@ class ClaimEvidenceResult(BaseModel):
 
 class EvidenceMapResponse(BaseModel):
     claims: list[ClaimEvidenceResult] = Field(default_factory=list)
+
+
+class PdfSourceResponse(BaseModel):
+    source_id: str
+    book_name: str
+    url: str
+    expires_in: int
     

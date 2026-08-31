@@ -75,4 +75,8 @@ class Settings(BaseSettings):
         return value or None
 
 
+    GCS_BUCKET_NAME: str = "history-verifier-sources"
+    PDF_URL_EXPIRATION_MINUTES: int = Field(default=60, gt=0)
+    GCP_SERVICE_ACCOUNT_EMAIL: str
+
 settings = Settings()
