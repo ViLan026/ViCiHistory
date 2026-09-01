@@ -6,18 +6,15 @@ from typing import Any
 from qdrant_client import QdrantClient
 
 from app.config import settings
+from app.data.sources import HISTORICAL_SOURCES
 from app.exceptions import RetrievalServiceError
 from app.schemas.verification import EvidenceItem
-
-from app.data.sources import HISTORICAL_SOURCES
 
 logger = logging.getLogger(__name__)
 
 
 def _safe_str(value: Any, fallback: str = "") -> str:
-    if value is None:
-        return fallback
-    return str(value)
+    return fallback if value is None else str(value)
 
 
 def _safe_float(value: Any) -> float | None:
@@ -32,6 +29,7 @@ def _safe_float(value: Any) -> float | None:
 def _safe_list_int(value: Any) -> list[int]:
     if value is None:
         return []
+
     if isinstance(value, list):
         result: list[int] = []
         for item in value:
@@ -40,10 +38,45 @@ def _safe_list_int(value: Any) -> list[int]:
             except (TypeError, ValueError):
                 continue
         return result
+
     try:
         return [int(value)]
     except (TypeError, ValueError):
         return []
+
+
+def _resolve_source_id(payload: dict[str, Any], book_name: str) -> str | None:
+    source_id = _safe_str(payload.get("source_id")).strip()
+    if source_id:
+        return source_id
+
+    if book_name and book_name in HISTORICAL_SOURCES:
+        return HISTORICAL_SOURCES[book_name]["source_id"]
+
+    return None
+
+
+def _build_evidence_item(point: Any, payload: dict[str, Any], text: str) -> EvidenceItem:
+    book_name = _safe_str(payload.get("book_name")).strip()
+    source_id = _resolve_source_id(payload, book_name)
+
+    headers_raw = payload.get("headers")
+    headers = None
+    if isinstance(headers_raw, dict):
+        headers = {str(key): str(value) for key, value in headers_raw.items()}
+
+    footnotes_raw = payload.get("footnotes")
+
+    return EvidenceItem(
+        chunk_id=str(point.id),
+        score=_safe_float(getattr(point, "score", None)),
+        book_name=book_name,
+        source_id=source_id,
+        pages=_safe_list_int(payload.get("pages")),
+        text=text,
+        headers=headers,
+        footnotes=footnotes_raw if isinstance(footnotes_raw, dict) else None,
+    )
 
 
 class QdrantService:
@@ -54,6 +87,7 @@ class QdrantService:
             timeout=settings.QDRANT_TIMEOUT_SECONDS,
         )
         self._collection = settings.QDRANT_COLLECTION_NAME
+
         logger.info("Qdrant client initialized. collection=%s", self._collection)
 
     def search(self, vector: list[float], top_k: int | None = None) -> list[EvidenceItem]:
@@ -73,53 +107,26 @@ class QdrantService:
             )
         except Exception as exc:
             logger.exception("Qdrant search failed. collection=%s", self._collection)
-            raise RetrievalServiceError(
-                "Qdrant search could not be completed."
-            ) from exc
+            raise RetrievalServiceError("Qdrant search could not be completed.") from exc
 
         items: list[EvidenceItem] = []
+
         for point in response.points:
-            payload: dict[str, Any] = point.payload or {}
+            payload = point.payload or {}
             text = _safe_str(payload.get("raw_text") or payload.get("overlap_text")).strip()
-            chunk_id = _safe_str(
-                payload.get("chunk_id") or point.id,
-                fallback=str(point.id),
-            )
-            book_name_text = _safe_str(payload.get("book_name")).strip()
-            book_name = book_name_text or None
 
-            source_id = None
+            if not text:
+                continue
 
-            if book_name and book_name in HISTORICAL_SOURCES:
-                source_id = HISTORICAL_SOURCES[book_name]["source_id"]
+            items.append(_build_evidence_item(point, payload, text))
 
-            headers_raw = payload.get("headers")
-            headers: dict[str, str] | None = None
-
-            if isinstance(headers_raw, dict):
-                headers = {
-                    str(key): str(value)
-                    for key, value in headers_raw.items()
-                }
-
-            footnotes_raw = payload.get("footnotes")
-
-            items.append(
-                EvidenceItem(
-                    chunk_id=chunk_id or None,
-                    score=_safe_float(getattr(point, "score", None)),
-                    book_name=book_name_text, 
-                    source_id=source_id,
-                    pages=_safe_list_int(payload.get("pages")),
-                    text=text,
-                    headers=headers,
-                    footnotes=footnotes_raw if isinstance(footnotes_raw, dict) else None,
-                )
-            )
- 
         return items
 
     def scroll_all(self) -> list[EvidenceItem]:
+        """
+        Chỉ dùng để build BM25 artifact offline.
+        Runtime Cloud Run không gọi method này.
+        """
         items: list[EvidenceItem] = []
         offset = None
 
@@ -134,44 +141,15 @@ class QdrantService:
 
             for point in points:
                 payload = point.payload or {}
-                text = _safe_str(payload.get("raw_text") or payload.get("overlap_text")).strip()
-                chunk_id = str(point.id)
+                text = _safe_str(payload.get("raw_text")).strip()
 
                 if not text:
                     continue
 
-                book_name_text = _safe_str(payload.get("book_name")).strip()
-
-                source_id = None
-                if book_name_text and book_name_text in HISTORICAL_SOURCES:
-                    source_id = HISTORICAL_SOURCES[book_name_text]["source_id"]
-
-                headers_raw = payload.get("headers")
-                headers = None
-
-                if isinstance(headers_raw, dict):
-                    headers = {
-                        str(key): str(value)
-                        for key, value in headers_raw.items()
-                    }
-
-                footnotes_raw = payload.get("footnotes")
-
-                items.append(
-                    EvidenceItem(
-                        chunk_id=chunk_id,
-                        score=None,
-                        book_name=book_name_text,
-                        source_id=source_id,
-                        pages=_safe_list_int(payload.get("pages")),
-                        text=text,
-                        headers=headers,
-                        footnotes=footnotes_raw if isinstance(footnotes_raw, dict) else None,
-                    )
-                )
+                items.append(_build_evidence_item(point, payload, text))
 
             if offset is None:
                 break
 
-        logger.info("Loaded %d Qdrant documents for BM25.", len(items))
+        logger.info("Loaded %d Qdrant documents for BM25 build.", len(items))
         return items

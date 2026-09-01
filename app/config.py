@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     # Qdrant
     QDRANT_URL: str
     QDRANT_API_KEY: str
-    QDRANT_COLLECTION_NAME: str = "history_aiteamvn_chunk_256"
+    QDRANT_COLLECTION_NAME: str = "history_sources_aiteamvn_256"
     QDRANT_TIMEOUT_SECONDS: float = Field(default=60.0, gt=0)
 
     # Embedding model MUST match the model used when the collection was indexed.
@@ -41,18 +41,21 @@ class Settings(BaseSettings):
     # Pipeline
     TOP_K: int = Field(default=5, gt=0, le=20)
     RETRIEVAL_CANDIDATE_K: int = Field(default=20, gt=0, le=100)
-    HYBRID_ALPHA: float = Field(default=0.5, ge=0.0, le=1.0)
+    HYBRID_ALPHA: float = Field(default=0.3, ge=0.0, le=1.0)
 
     MAX_CLAIMS_PER_INPUT: int = Field(default=8, gt=0, le=20)
     MAX_INPUT_CHARS: int = Field(default=12_000, gt=0)
     MAX_EVIDENCE_CHARS: int = Field(default=2_500, gt=0)
     MIN_EVIDENCE_SCORE: float = Field(default=0.0, ge=0.0, le=1.0)
 
+    BM25_INDEX_PATH: str = "app/data/bm25_index.pkl"
+
     @field_validator(
         "QDRANT_URL",
         "QDRANT_COLLECTION_NAME",
         "EMBEDDING_MODEL",
         "GEMINI_MODEL",
+        "BM25_INDEX_PATH",
     )
     @classmethod
     def text_not_empty(cls, value: str) -> str:
