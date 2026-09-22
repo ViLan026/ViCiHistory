@@ -14,15 +14,19 @@ services:
       - .env
     environment:
       OLLAMA_URL: http://ollama:11434
+      SOURCE_CACHE_DIR: /app/.cache/history_sources
     depends_on:
       - ollama
     ports:
       - "8080:8080"
+    volumes:
+      - source_cache:/app/.cache/history_sources
     networks:
       - history_ai
 
 volumes:
   ollama_data:
+  source_cache:
 
 networks:
   history_ai:

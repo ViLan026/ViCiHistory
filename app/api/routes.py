@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, HTTPException, Request, status
+from fastapi import APIRouter, HTTPException, Request, Response, status
+from app.schemas.evidence import EvidenceMapRequest, EvidenceMapResponse, PdfExcerptRequest
 
 from app.config import settings
 from app.exceptions import LLMServiceError, RetrievalServiceError, StorageServiceError
-from app.schemas.evidence import EvidenceMapRequest, EvidenceMapResponse, PdfSourceResponse
 from app.services.factory import ServiceContainer
 
 logger = logging.getLogger(__name__)
@@ -67,38 +67,52 @@ def build_evidence_map(
             detail="Đã xảy ra lỗi nội bộ khi tìm nguồn sử liệu.",
         ) from exc
 
-
-@router.get("/api/v1/sources/{source_id}/pdf", response_model=PdfSourceResponse)
-def get_pdf_source(source_id: str, request: Request) -> PdfSourceResponse:
+@router.post("/api/v1/sources/{source_id}/excerpt")
+def get_source_excerpt(
+    source_id: str,
+    request_body: PdfExcerptRequest,
+    request: Request,
+) -> Response:
     try:
         services = get_services(request)
-        book_name, url, expires_in = services.storage.get_pdf_url(source_id)
 
-        return PdfSourceResponse(
+        result = services.source_excerpt.build_excerpt(
             source_id=source_id,
-            book_name=book_name,
-            url=url,
-            expires_in=expires_in,
+            pdf_pages=request_body.pdf_pages,
+            evidence_text=request_body.text,
+        )
+
+        return Response(
+            content=result.content,
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f'inline; filename="{source_id}-excerpt.pdf"',
+                "Cache-Control": "no-store",
+                "X-Excerpt-Start-Page": str(result.start_pdf_page),
+                "X-Excerpt-End-Page": str(result.end_pdf_page),
+                "X-Target-Excerpt-Page": str(result.target_excerpt_page),
+                "X-Highlight-Mode": result.highlight_mode,
+            },
         )
 
     except ValueError as exc:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(exc),
         ) from exc
 
     except StorageServiceError as exc:
-        logger.exception("Failed to generate source URL. source_id=%s", source_id)
+        logger.exception("Source PDF storage failed. source_id=%s", source_id)
 
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Dịch vụ lưu trữ sử liệu tạm thời không khả dụng.",
+            detail="Không thể tải nguồn sử liệu.",
         ) from exc
 
     except Exception as exc:
-        logger.exception("Unexpected PDF source error. source_id=%s", source_id)
+        logger.exception("PDF excerpt generation failed. source_id=%s", source_id)
 
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Không thể tạo đường dẫn truy cập sử liệu.",
+            detail="Không thể tạo trích đoạn PDF.",
         ) from exc

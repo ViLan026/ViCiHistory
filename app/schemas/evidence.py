@@ -67,8 +67,26 @@ class EvidenceMapResponse(BaseModel):
     claims: list[ClaimEvidenceResult] = Field(default_factory=list)
 
 
-class PdfSourceResponse(BaseModel):
-    source_id: str
-    book_name: str
-    url: str
-    expires_in: int
+class PdfExcerptRequest(BaseModel):
+    pdf_pages: list[int] = Field(min_length=1, max_length=3)
+    text: str
+
+    @field_validator("pdf_pages")
+    @classmethod
+    def validate_pdf_pages(cls, value: list[int]) -> list[int]:
+        pages = sorted(set(value))
+
+        if not pages or any(page < 1 for page in pages):
+            raise ValueError("'pdf_pages' must contain page numbers >= 1.")
+
+        return pages
+
+    @field_validator("text")
+    @classmethod
+    def excerpt_text_not_empty(cls, value: str) -> str:
+        value = value.strip()
+
+        if not value:
+            raise ValueError("'text' must not be empty.")
+
+        return value

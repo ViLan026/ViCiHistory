@@ -40,7 +40,7 @@ class Settings(BaseSettings):
     # Retrieval pipeline
     TOP_K: int = Field(default=5, gt=0, le=20)
     RETRIEVAL_CANDIDATE_K: int = Field(default=20, gt=0, le=100)
-    HYBRID_ALPHA: float = Field(default=0.3, ge=0.0, le=1.0)
+    HYBRID_ALPHA: float = Field(default=0.5, ge=0.0, le=1.0)
 
     MAX_CLAIMS_PER_INPUT: int = Field(default=8, gt=0, le=20)
     MAX_INPUT_CHARS: int = Field(default=12_000, gt=0)
@@ -53,6 +53,9 @@ class Settings(BaseSettings):
     AWS_REGION: str = "ap-southeast-1"
     S3_BUCKET_NAME: str | None = None
     PDF_URL_EXPIRATION_SECONDS: int = Field(default=3600, gt=0)
+
+    SOURCE_CACHE_DIR: str = ".cache/history_sources"
+    PDF_EXCERPT_PAGE_COUNT: int = Field(default=7, ge=1, le=15)
 
     @field_validator(
         "QDRANT_URL",

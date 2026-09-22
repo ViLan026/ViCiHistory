@@ -11,7 +11,7 @@ from app.services.evidence_map import EvidenceMapService
 from app.services.ollama import OllamaService
 from app.services.qdrant import QdrantService
 from app.services.retrieval import RetrievalService
-from app.services.storage import StorageService
+from app.services.source_excerpt import SourceExcerptService
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 class ServiceContainer:
     ollama: OllamaService
     evidence_map: EvidenceMapService
-    storage: StorageService
+    source_excerpt: SourceExcerptService
 
     def close(self) -> None:
         self.ollama.close()
@@ -31,11 +31,7 @@ def build_services() -> ServiceContainer:
 
     embedding = EmbeddingService()
     qdrant = QdrantService()
-
-    bm25 = BM25Service.load(
-        settings.BM25_INDEX_PATH,
-        expected_collection=settings.QDRANT_COLLECTION_NAME,
-    )
+    bm25 = BM25Service.load(settings.BM25_INDEX_PATH, expected_collection=settings.QDRANT_COLLECTION_NAME)
 
     retrieval = RetrievalService(
         embedding_service=embedding,
@@ -44,18 +40,13 @@ def build_services() -> ServiceContainer:
     )
 
     ollama = OllamaService()
-
-    evidence_map = EvidenceMapService(
-        ollama_service=ollama,
-        retrieval_service=retrieval,
-    )
-
-    storage = StorageService()
+    evidence_map = EvidenceMapService(ollama_service=ollama, retrieval_service=retrieval)
+    source_excerpt = SourceExcerptService()
 
     logger.info("All services initialized in %.2fs.", time.perf_counter() - start)
 
     return ServiceContainer(
         ollama=ollama,
         evidence_map=evidence_map,
-        storage=storage,
+        source_excerpt=source_excerpt,
     )
