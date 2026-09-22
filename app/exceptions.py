@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 
-class GeminiServiceError(RuntimeError):
+class LLMServiceError(RuntimeError):
     def __init__(self, message: str, *, operation: str) -> None:
         super().__init__(message)
         self.operation = operation
@@ -9,3 +9,7 @@ class GeminiServiceError(RuntimeError):
 
 class RetrievalServiceError(RuntimeError):
     pass
+
+class StorageServiceError(RuntimeError):
+    pass
+

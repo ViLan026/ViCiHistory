@@ -1,21 +1,27 @@
 from __future__ import annotations
 
 import logging
+import os
 import re
+import tempfile
 from collections import defaultdict
 from pathlib import Path
 
+import boto3
 import fitz
-from google.cloud import storage
+from botocore.config import Config
+from botocore.exceptions import BotoCoreError, ClientError
 
-from history_verifier_ai.app.schemas.source_view import HighlightRect, SourcePage, SourceWord
+from app.config import settings
 from app.data.sources import HISTORICAL_SOURCES
+from app.exceptions import StorageServiceError
+from app.schemas.source_view import HighlightRect, SourcePage, SourceWord
 
 logger = logging.getLogger(__name__)
 
 SOURCE_CONFIG = {
     source["source_id"]: {
-        "blob": source["object_name"],
+        "s3_key": source["s3_key"],
         "offset": source.get("offset", 0),
     }
     for source in HISTORICAL_SOURCES.values()
@@ -29,15 +35,34 @@ def normalize_token(text: str) -> str:
 
 
 def tokenize(text: str) -> list[str]:
-    return [normalize_token(value) for value in TOKEN_PATTERN.findall(text) if value.strip()]
+    return [
+        normalize_token(value)
+        for value in TOKEN_PATTERN.findall(text)
+        if value.strip()
+    ]
 
 
 class SourceDocumentService:
-    def __init__(self, bucket_name: str) -> None:
-        self._bucket_name = bucket_name
-        self._storage_client = storage.Client()
+    def __init__(self, bucket_name: str | None = None) -> None:
+        self._bucket_name = bucket_name or settings.S3_BUCKET_NAME
+
+        if not self._bucket_name:
+            raise ValueError("S3_BUCKET_NAME must be configured.")
+
+        self._s3_client = boto3.client(
+            "s3",
+            region_name=settings.AWS_REGION,
+            config=Config(signature_version="s3v4", s3={"addressing_style": "virtual"},),
+        )
+
         self._cache_dir = Path("/tmp/history_sources")
         self._cache_dir.mkdir(parents=True, exist_ok=True)
+
+        logger.info(
+            "Source document service initialized. bucket=%s region=%s",
+            self._bucket_name,
+            settings.AWS_REGION,
+        )
 
     @staticmethod
     def to_pdf_page(source_id: str, source_page: int) -> int:
@@ -59,18 +84,60 @@ class SourceDocumentService:
         if path.exists() and path.stat().st_size > 0:
             return path
 
-        logger.info("Downloading source PDF from GCS. source_id=%s", source_id)
+        logger.info( "Downloading historical source from S3. source_id=%s key=%s", source_id, config["s3_key"])
 
-        bucket = self._storage_client.bucket(self._bucket_name)
-        blob = bucket.blob(str(config["blob"]))
-        blob.download_to_filename(path)
+        temp_file = tempfile.NamedTemporaryFile(
+            mode="wb",
+            suffix=".pdf.part",
+            prefix=f"{source_id}_",
+            dir=self._cache_dir,
+            delete=False,
+        )
+        temp_path = Path(temp_file.name)
+        temp_file.close()
 
-        return path
+        try:
+            self._s3_client.download_file(
+                Bucket=self._bucket_name,
+                Key=str(config["s3_key"]),
+                Filename=str(temp_path),
+            )
+
+            if not temp_path.exists() or temp_path.stat().st_size == 0:
+                raise StorageServiceError(f"Downloaded source is empty: {source_id}" )
+
+            os.replace(temp_path, path)
+
+            logger.info( "Historical source cached. source_id=%s path=%s", source_id, path)
+
+            return path
+
+        except StorageServiceError:
+            raise
+
+        except (BotoCoreError, ClientError, OSError) as exc:
+            logger.exception(
+                "Failed to download historical source from S3. "
+                "source_id=%s key=%s",
+                source_id,
+                config["s3_key"],
+            )
+
+            raise StorageServiceError(f"Could not download historical source: {source_id}") from exc
+
+        finally:
+            if temp_path.exists():
+                temp_path.unlink(missing_ok=True)
 
     def get_document(self, source_id: str) -> fitz.Document:
         return fitz.open(self._get_pdf_path(source_id))
 
-    def get_page_image(self, source_id: str, pdf_page: int, scale: float = 1.6) -> bytes:
+    def get_page_image(
+        self,
+        source_id: str,
+        pdf_page: int,
+        scale: float = 1.6,
+    ) -> bytes:
         document = self.get_document(source_id)
 
         try:
@@ -78,26 +145,39 @@ class SourceDocumentService:
                 raise ValueError("PDF page is out of range.")
 
             page = document.load_page(pdf_page - 1)
-            pixmap = page.get_pixmap(matrix=fitz.Matrix(scale, scale), alpha=False)
+
+            pixmap = page.get_pixmap( matrix=fitz.Matrix(scale, scale), alpha=False)
+
             return pixmap.tobytes("png")
+
         finally:
             document.close()
 
-    def build_evidence_view(self, source_id: str, source_pages: list[int], evidence_text: str) -> tuple[list[int], list[int], list[SourcePage], bool]:
+    def build_evidence_view(
+        self,
+        source_id: str,
+        source_pages: list[int],
+        evidence_text: str,
+    ) -> tuple[list[int], list[int], list[SourcePage], bool]:
         if not source_pages or any(page < 1 for page in source_pages):
             raise ValueError("'pages' must contain page numbers >= 1.")
 
         if not evidence_text.strip():
             raise ValueError("'text' must not be empty.")
-        
+
         source_pages = sorted(set(source_pages))
-        pdf_pages = [self.to_pdf_page(source_id, page) for page in source_pages]
+
+        pdf_pages = [
+            self.to_pdf_page(source_id, page)
+            for page in source_pages
+        ]
 
         document = self.get_document(source_id)
 
         try:
             first_page = max(1, min(pdf_pages) - 3)
-            last_page = min(document.page_count, max(pdf_pages) + 3)
+            last_page = min( document.page_count, max(pdf_pages) + 3,)
+
             display_pages = list(range(first_page, last_page + 1))
 
             page_words: dict[int, list[SourceWord]] = {}
@@ -105,11 +185,14 @@ class SourceDocumentService:
 
             for pdf_page in display_pages:
                 page = document.load_page(pdf_page - 1)
-                raw_words = page.get_text("words", sort=True)
+
+                raw_words = page.get_text( "words", sort=True)
+
                 words: list[SourceWord] = []
 
                 for index, raw in enumerate(raw_words):
                     x0, y0, x1, y1, text, block, line, word = raw
+
                     words.append(
                         SourceWord(
                             text=text,
@@ -125,12 +208,13 @@ class SourceDocumentService:
 
                     if pdf_page in pdf_pages:
                         for token in tokenize(text):
-                            token_refs.append((token, pdf_page, index))
+                            token_refs.append((token,pdf_page,index))
 
                 page_words[pdf_page] = words
 
-            matched = self._find_match(token_refs, evidence_text)
-            highlights = self._build_highlights(page_words, matched)
+            matched = self._find_match(token_refs,evidence_text)
+
+            highlights = self._build_highlights(page_words,matched)
 
             pages = [
                 SourcePage(
@@ -138,17 +222,24 @@ class SourceDocumentService:
                     width=1.0,
                     height=1.0,
                     words=page_words[pdf_page],
-                    highlights=highlights.get(pdf_page, []),
+                    highlights=highlights.get(
+                        pdf_page,
+                        [],
+                    ),
                 )
                 for pdf_page in display_pages
             ]
 
-            return pdf_pages, display_pages, pages, bool(matched)
+            return (pdf_pages, display_pages, pages, bool(matched))
+
         finally:
             document.close()
 
     @staticmethod
-    def _find_match(token_refs: list[tuple[str, int, int]], evidence_text: str) -> list[tuple[str, int, int]]:
+    def _find_match(
+        token_refs: list[tuple[str, int, int]],
+        evidence_text: str,
+    ) -> list[tuple[str, int, int]]:
         target = tokenize(evidence_text)
         source = [item[0] for item in token_refs]
 
@@ -168,14 +259,15 @@ class SourceDocumentService:
                 if len(" ".join(fragment)) < 40:
                     continue
 
-                matches = []
+                matches: list[int] = []
 
                 for source_start in range(len(source) - size + 1):
-                    if source[source_start:source_start + size] == fragment:
+                    if (source[source_start: source_start + size] == fragment): 
                         matches.append(source_start)
 
                 if len(matches) == 1:
                     start = matches[0]
+
                     return token_refs[start:start + size]
 
         return []
@@ -194,7 +286,8 @@ class SourceDocumentService:
 
         for page_number, item_indexes in indexes.items():
             words = page_words[page_number]
-            lines: dict[tuple[int, int], list[SourceWord]] = defaultdict(list)
+
+            lines: dict[ tuple[int, int], list[SourceWord] ] = defaultdict(list)
 
             for index in sorted(item_indexes):
                 word = words[index]
@@ -212,7 +305,7 @@ class SourceDocumentService:
                     HighlightRect(
                         x=max(0, x0 - 0.003),
                         y=max(0, y0 - 0.002),
-                        width=min(1 - x0, x1 - x0 + 0.006),
+                        width=min( 1 - x0, x1 - x0 + 0.006),
                         height=min(1 - y0, y1 - y0 + 0.004),
                     )
                 )

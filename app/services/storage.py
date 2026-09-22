@@ -1,57 +1,75 @@
 from __future__ import annotations
 
-import datetime
 import logging
 
-import google.auth
-from google.auth import impersonated_credentials
-from google.cloud import storage
+import boto3
+from botocore.config import Config
+from botocore.exceptions import BotoCoreError, ClientError
 
 from app.config import settings
 from app.data.sources import HISTORICAL_SOURCES
+from app.exceptions import StorageServiceError
 
 logger = logging.getLogger(__name__)
 
 
 class StorageService:
     def __init__(self) -> None:
-        self._client = storage.Client()
-        self._bucket = self._client.bucket(settings.GCS_BUCKET_NAME)
+        if not settings.S3_BUCKET_NAME:
+            raise ValueError("S3_BUCKET_NAME must be configured.")
+
+        self._bucket_name = settings.S3_BUCKET_NAME
+
+        self._client = boto3.client(
+            "s3",
+            region_name=settings.AWS_REGION,
+            config=Config(
+                signature_version="s3v4",
+                s3={"addressing_style": "virtual"},
+            ),
+        )
 
         self._sources_by_id = {
             source["source_id"]: {
                 "book_name": book_name,
-                "object_name": source["object_name"],
+                "s3_key": source["s3_key"],
             }
             for book_name, source in HISTORICAL_SOURCES.items()
         }
 
-        logger.info("Cloud Storage client initialized. bucket=%s", settings.GCS_BUCKET_NAME)
+        logger.info(
+            "Amazon S3 client initialized. bucket=%s region=%s",
+            self._bucket_name,
+            settings.AWS_REGION,
+        )
 
     def get_pdf_url(self, source_id: str) -> tuple[str, str, int]:
         source = self._sources_by_id.get(source_id)
 
         if source is None:
-            raise ValueError("Historical source not found.")
+            raise ValueError(f"Historical source not found: {source_id}")
 
-        credentials, _ = google.auth.default()
+        expires_in = settings.PDF_URL_EXPIRATION_SECONDS
 
-        signing_credentials = impersonated_credentials.Credentials(
-            source_credentials=credentials,
-            target_principal=settings.GCP_SERVICE_ACCOUNT_EMAIL,
-            target_scopes=["https://www.googleapis.com/auth/devstorage.read_only"],
-            lifetime=3600,
-        )
+        try:
+            url = self._client.generate_presigned_url(
+                ClientMethod="get_object",
+                Params={
+                    "Bucket": self._bucket_name,
+                    "Key": source["s3_key"],
+                },
+                ExpiresIn=expires_in,
+            )
 
-        blob = self._bucket.blob(source["object_name"])
+        except (BotoCoreError, ClientError) as exc:
+            logger.exception(
+                "Failed to generate S3 presigned URL. source_id=%s key=%s",
+                source_id,
+                source["s3_key"],
+            )
 
-        expiration_minutes = settings.PDF_URL_EXPIRATION_MINUTES
+            raise StorageServiceError(
+                "Could not generate historical source URL."
+            ) from exc
 
-        url = blob.generate_signed_url(
-            version="v4",
-            expiration=datetime.timedelta(minutes=expiration_minutes),
-            method="GET",
-            credentials=signing_credentials,
-        )
-
-        return source["book_name"], url, expiration_minutes * 60
+        return source["book_name"], url, expires_in
