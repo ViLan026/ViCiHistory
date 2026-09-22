@@ -89,3 +89,26 @@ HISTORICAL_SOURCES = {
         "offset": 2,
     }
     }
+
+
+SOURCE_BY_ID = {
+    source["source_id"]: source
+    for source in HISTORICAL_SOURCES.values()
+}
+
+
+def map_source_pages_to_pdf_pages(
+    pages: list[int],
+    source_id: str | None = None,
+    book_name: str | None = None,
+) -> list[int]:
+    source = SOURCE_BY_ID.get(source_id) if source_id else None
+
+    if source is None and book_name:
+        source = HISTORICAL_SOURCES.get(book_name)
+
+    if source is None:
+        return []
+
+    offset = int(source.get("offset", 0))
+    return [page + offset for page in pages if page + offset >= 1]

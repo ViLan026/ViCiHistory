@@ -8,6 +8,7 @@ from app.schemas.evidence import EvidenceItem
 from app.services.bm25 import BM25Service
 from app.services.embedding import EmbeddingService
 from app.services.qdrant import QdrantService
+from app.data.sources import map_source_pages_to_pdf_pages
 
 logger = logging.getLogger(__name__)
 
@@ -122,8 +123,17 @@ class RetrievalService:
                 if item.score is None or item.score < settings.MIN_EVIDENCE_SCORE:
                     continue
 
+            pdf_pages = map_source_pages_to_pdf_pages(
+                pages=item.pages,
+                source_id=item.source_id,
+                book_name=item.book_name,
+            )
+
             valid_items.append(
-                item.model_copy(update={"text": text})
+                item.model_copy(update={
+                    "text": text,
+                    "pdf_pages": pdf_pages,
+                })
             )
 
         logger.info(

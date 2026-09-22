@@ -130,10 +130,7 @@ class QdrantService:
         return items
 
     def scroll_all(self) -> list[EvidenceItem]:
-        """
-        Chỉ dùng để build BM25 artifact offline.
-        Runtime Cloud Run không gọi method này.
-        """
+
         items: list[EvidenceItem] = []
         offset = None
 

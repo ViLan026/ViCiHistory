@@ -28,12 +28,13 @@ class EvidenceItem(BaseModel):
     chunk_id: str | None = None
     score: float | None = None
     book_name: str | None = None
+    source_id: str | None = None
     pages: list[int] = Field(default_factory=list)
+    pdf_pages: list[int] = Field(default_factory=list)
     text: str
     headers: dict[str, str] | None = None
     footnotes: dict[str, Any] | None = None
     token_count: int | None = None
-    source_id: str | None = None
 
 
 class ExtractedClaim(BaseModel):
@@ -71,4 +72,3 @@ class PdfSourceResponse(BaseModel):
     book_name: str
     url: str
     expires_in: int
-    

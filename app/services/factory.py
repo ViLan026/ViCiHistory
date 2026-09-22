@@ -11,7 +11,6 @@ from app.services.evidence_map import EvidenceMapService
 from app.services.ollama import OllamaService
 from app.services.qdrant import QdrantService
 from app.services.retrieval import RetrievalService
-from app.services.source_document_service import SourceDocumentService
 from app.services.storage import StorageService
 
 logger = logging.getLogger(__name__)
@@ -22,7 +21,6 @@ class ServiceContainer:
     ollama: OllamaService
     evidence_map: EvidenceMapService
     storage: StorageService
-    source_documents: SourceDocumentService
 
     def close(self) -> None:
         self.ollama.close()
@@ -53,16 +51,11 @@ def build_services() -> ServiceContainer:
     )
 
     storage = StorageService()
-    source_documents = SourceDocumentService()
 
-    logger.info(
-        "All services initialized in %.2fs.",
-        time.perf_counter() - start,
-    )
+    logger.info("All services initialized in %.2fs.", time.perf_counter() - start)
 
     return ServiceContainer(
         ollama=ollama,
         evidence_map=evidence_map,
         storage=storage,
-        source_documents=source_documents,
     )
