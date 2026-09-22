@@ -1,0 +1,1 @@
+# prompt -> HTTP request -> Ollama -> Qwen2.5-3B -> JSON -> Pydantic

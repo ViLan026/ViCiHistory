@@ -8,7 +8,7 @@ from qdrant_client import QdrantClient
 from app.config import settings
 from app.data.sources import HISTORICAL_SOURCES
 from app.exceptions import RetrievalServiceError
-from app.schemas.verification import EvidenceItem
+from history_verifier_ai.app.schemas.evidence import EvidenceItem
 
 logger = logging.getLogger(__name__)
 
@@ -45,15 +45,22 @@ def _safe_list_int(value: Any) -> list[int]:
         return []
 
 
-def _resolve_source_id(payload: dict[str, Any], book_name: str) -> str | None:
-    source_id = _safe_str(payload.get("source_id")).strip()
-    if source_id:
-        return source_id
+# def _resolve_source_id(payload: dict[str, Any], book_name: str) -> str | None:
+#     source_id = _safe_str(payload.get("source_id")).strip()
+#     if source_id:
+#         return source_id
 
+#     if book_name and book_name in HISTORICAL_SOURCES:
+#         return HISTORICAL_SOURCES[book_name]["source_id"]
+
+#     return None
+
+def _resolve_source_id(payload: dict[str, Any], book_name: str) -> str | None:
     if book_name and book_name in HISTORICAL_SOURCES:
         return HISTORICAL_SOURCES[book_name]["source_id"]
 
-    return None
+    source_id = _safe_str(payload.get("source_id")).strip()
+    return source_id or None
 
 
 def _build_evidence_item(point: Any, payload: dict[str, Any], text: str) -> EvidenceItem:

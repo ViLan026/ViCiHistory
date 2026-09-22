@@ -8,7 +8,7 @@ from pathlib import Path
 import fitz
 from google.cloud import storage
 
-from app.schemas.source_view_schema import HighlightRect, SourcePage, SourceWord
+from history_verifier_ai.app.schemas.source_view import HighlightRect, SourcePage, SourceWord
 from app.data.sources import HISTORICAL_SOURCES
 
 logger = logging.getLogger(__name__)

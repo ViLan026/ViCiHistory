@@ -7,10 +7,10 @@ from fastapi import APIRouter, HTTPException, Request, status, Response
 
 from app.config import settings
 from app.exceptions import GeminiServiceError, RetrievalServiceError
-from app.schemas.verification import EvidenceMapRequest, EvidenceMapResponse, PdfSourceResponse
+from history_verifier_ai.app.schemas.evidence import EvidenceMapRequest, EvidenceMapResponse, PdfSourceResponse
 from app.services.factory import ServiceContainer
 from app.services.source_document_service import SourceDocumentService
-from app.schemas.source_view_schema import EvidenceViewRequest, EvidenceViewResponse
+from history_verifier_ai.app.schemas.source_view import EvidenceViewRequest, EvidenceViewResponse
 
 logger = logging.getLogger(__name__)
 

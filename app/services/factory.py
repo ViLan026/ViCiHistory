@@ -11,7 +11,7 @@ from app.services.gemini import GeminiService
 from app.services.qdrant import QdrantService
 from app.services.retrieval import RetrievalService
 from app.services.storage import StorageService
-from app.services.verification import VerificationService
+# from app.services.verification import VerificationService
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ServiceContainer:
     gemini: GeminiService
-    verifier: VerificationService
+    # verifier: VerificationService
     storage: StorageService
 
     def close(self) -> None:

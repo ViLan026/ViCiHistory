@@ -12,7 +12,7 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    APP_NAME: str = "history_verifier_ai"
+    APP_NAME: str = "history_retrieval"
     APP_ENV: str = "local"
     APP_HOST: str = "0.0.0.0"
     PORT: int = Field(default=8080, ge=1, le=65535)
@@ -30,13 +30,10 @@ class Settings(BaseSettings):
     # Embedding model MUST match the model used when the collection was indexed.
     EMBEDDING_MODEL: str = "AITeamVN/Vietnamese_Embedding"
 
-    # Gemini
-    GEMINI_API_KEY: str
-    GEMINI_MODEL: str = "gemini-3.1-flash-lite"
-    GEMINI_TEMPERATURE: float = Field(default=0.0, ge=0.0, le=2.0)
-    GEMINI_MAX_OUTPUT_TOKENS: int = Field(default=2048, gt=0)
-    GEMINI_TIMEOUT_MS: int = Field(default=120_000, gt=0)
-    GEMINI_MAX_RETRIES: int = Field(default=2, ge=0)
+    OLLAMA_URL: str
+    OLLAMA_MODELL: str
+    OLLAMA_TIMEOUT_SECONDS: float = Field(default=60.0, gt=0)
+    OLLAMA_MAX_RETRIES: int = Field(default=2, ge=0)
 
     # Pipeline
     TOP_K: int = Field(default=5, gt=0, le=20)
@@ -54,7 +51,6 @@ class Settings(BaseSettings):
         "QDRANT_URL",
         "QDRANT_COLLECTION_NAME",
         "EMBEDDING_MODEL",
-        "GEMINI_MODEL",
         "BM25_INDEX_PATH",
     )
     @classmethod
@@ -64,7 +60,7 @@ class Settings(BaseSettings):
             raise ValueError("Configuration value must not be empty.")
         return value
 
-    @field_validator("QDRANT_API_KEY", "GEMINI_API_KEY")
+    @field_validator("QDRANT_API_KEY")
     @classmethod
     def secret_not_empty(cls, value: str) -> str:
         value = value.strip()
@@ -81,8 +77,8 @@ class Settings(BaseSettings):
         return value or None
 
 
-    GCS_BUCKET_NAME: str = "history-verifier-sources"
-    PDF_URL_EXPIRATION_MINUTES: int = Field(default=60, gt=0)
-    GCP_SERVICE_ACCOUNT_EMAIL: str
+    AWS_REGION: str
+    S3_BUCKET_NAME: str
+    PDF_URL_EXPIRATION_SECONDS: int = Field(default=3600, gt=0)
 
 settings = Settings()

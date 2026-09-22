@@ -4,7 +4,7 @@ import logging
 
 from app.config import settings
 from app.exceptions import RetrievalServiceError
-from app.schemas.verification import EvidenceItem
+# from app.schemas.verification import EvidenceItem
 from app.services.bm25 import BM25Service
 from app.services.embedding import EmbeddingService
 from app.services.qdrant import QdrantService
@@ -36,14 +36,12 @@ class RetrievalService:
         if max_score == min_score:
             return {
                 item.chunk_id: 1.0
-                for item in items
-                if item.chunk_id
+                for item in items if item.chunk_id
             }
 
         return {
             item.chunk_id: ((item.score or 0.0) - min_score) / (max_score - min_score)
-            for item in items
-            if item.chunk_id
+            for item in items if item.chunk_id
         }
 
     def retrieve(
@@ -103,16 +101,9 @@ class RetrievalService:
             dense_score = dense_scores.get(chunk_id, 0.0)
             bm25_score = bm25_scores.get(chunk_id, 0.0)
 
-            hybrid_score = (
-                settings.HYBRID_ALPHA * dense_score
-                + (1.0 - settings.HYBRID_ALPHA) * bm25_score
-            )
+            hybrid_score = (settings.HYBRID_ALPHA * dense_score + (1.0 - settings.HYBRID_ALPHA) * bm25_score)
 
-            hybrid_items.append(
-                item.model_copy(
-                    update={"score": hybrid_score}
-                )
-            )
+            hybrid_items.append(item.model_copy( update={"score": hybrid_score}))
 
         hybrid_items.sort(
             key=lambda item: item.score or 0.0,

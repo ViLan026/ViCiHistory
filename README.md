@@ -14,10 +14,10 @@ Pipeline:
 GET /health
 ```
 
-### Verify historical text
+### retrieval 
 
 ```http
-POST /api/v1/verify
+POST /api/v1/evidence-map
 Content-Type: application/json
 ```
 
@@ -36,8 +36,6 @@ Example response shape:
       "id": "claim_1",
       "source_text": "Năm 1285 quân Đại Việt đánh bại quân Nguyên tại Bạch Đằng.",
       "claim": "Quân Đại Việt đánh bại quân Nguyên tại Bạch Đằng vào năm 1285.",
-      "label": "REFUTED",
-      "explanation": "...",
       "evidence": [
         {
           "chunk_id": "...",
