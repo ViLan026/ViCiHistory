@@ -8,7 +8,7 @@ from qdrant_client import QdrantClient
 from app.config import settings
 from app.data.sources import HISTORICAL_SOURCES
 from app.exceptions import RetrievalServiceError
-from history_verifier_ai.app.schemas.evidence import EvidenceItem
+from app.schemas.evidence import EvidenceItem
 
 logger = logging.getLogger(__name__)
 

@@ -5,7 +5,7 @@ from app.config import settings
 
 def build_claim_extraction_prompt(content: str) -> str:
     return f"""
-Bạn là bộ trích xuất phát biểu lịch sử cho hệ thống hỗ trợ tìm nguồn sử liệu.
+Bạn là chuyên gia trích xuất phát biểu lịch sử trong một đoạn văn lịch sử.
 
 NHIỆM VỤ:
 Phân tích nội dung đầu vào và trích xuất các phát biểu lịch sử phù hợp để dùng làm truy vấn tìm nguồn sử liệu.
@@ -29,27 +29,14 @@ Một claim có thể chứa nhiều thông tin về nhân vật, hành động,
 Ví dụ:
 "Trần Quốc Tuấn chỉ huy quân Đại Việt đánh bại quân Nguyên tại Bạch Đằng năm 1288."
 
-Phải giữ thành một claim hoàn chỉnh, không tách thành các fact nhỏ như:
-- "Trần Quốc Tuấn chỉ huy quân Đại Việt."
-- "Quân Đại Việt đánh bại quân Nguyên."
-- "Trận đánh diễn ra tại Bạch Đằng."
-- "Trận đánh diễn ra năm 1288."
+Phải giữ thành một claim hoàn chỉnh có đủ thông tin, không cần tách thành nhiều claim nhỏ
 
 2. Chỉ tách khi nội dung chứa các sự kiện hoặc phát biểu tương đối độc lập.
 Nếu việc tách không làm mất quan hệ thời gian, nguyên nhân, kết quả hoặc ngữ cảnh quan trọng thì có thể tách.
 Nếu việc tách làm mất thông tin cần thiết để xác định đúng sự kiện, phải giữ thông tin đó trong claim.
 
 3. Giữ quan hệ giữa các câu khi cần thiết.
-Nếu một câu phụ thuộc vào câu trước thông qua các từ như:
-- "sau đó";
-- "trước đó";
-- "tiếp theo";
-- "vì vậy";
-- "do đó";
-- "sự kiện này";
-- "trận đánh đó";
-- "ông";
-- "ngài";
+Nếu một câu phụ thuộc vào câu trước thông qua các từ như:"sau đó"; "trước đó"; "tiếp theo"; "vì vậy"; "do đó"; "sự kiện này"; "trận đánh đó"; "ông"; "ngài";
 hãy đưa ngữ cảnh cần thiết từ câu trước vào claim.
 
 Ví dụ:
@@ -70,15 +57,7 @@ Thay đại từ hoặc cụm phụ thuộc ngữ cảnh bằng thực thể c�
 Không loại bỏ các thông tin ngữ cảnh có tác dụng xác định sự kiện.
 
 5. Không bổ sung kiến thức bên ngoài.
-Không tự thêm hoặc sửa:
-- nhân vật;
-- thời gian;
-- địa điểm;
-- chức vụ;
-- lực lượng;
-- nguyên nhân;
-- kết quả;
-- quan hệ giữa các sự kiện;
+Không tự thêm hoặc sửa thông tin như: nhân vật; thời gian; địa điểm; chức vụ; lực lượng; nguyên nhân; kết quả; quan hệ giữa các sự kiện;
 nếu thông tin đó không có trong nội dung đầu vào.
 
 6. source_text phải phản ánh đầy đủ phần văn bản dùng để tạo claim.
@@ -93,13 +72,8 @@ source_text của các claim khác nhau được phép chồng lấp nhau.
 - không decontextualize;
 - không ghép các đoạn không liên tiếp.
 
-8. Không trích xuất:
-- cảm xúc;
-- câu hỏi tu từ;
-- nhận xét chủ quan;
-- lời bình;
-- các đánh giá như "vĩ đại nhất", "hào hùng nhất", "kiệt xuất nhất";
-- các claim vụn hoặc hiển nhiên không có giá trị tìm nguồn.
+8. Không trích xuất các : cảm xúc; câu hỏi tu từ; nhận xét chủ quan; lời bình; các đánh giá như "vĩ đại nhất", "hào hùng nhất", 
+"kiệt xuất nhất"; các claim vụn hoặc hiển nhiên không có giá trị tìm nguồn.
 
 9. Giữ thứ tự xuất hiện trong nội dung.
 Không tạo claim trùng nhau.
@@ -161,6 +135,13 @@ Output:
     }}
   ]
 }}
+
+YÊU CẦU ĐẦU RA:
+- Chỉ trả về một JSON object hợp lệ.
+- Không sử dụng Markdown.
+- Không đặt JSON trong ```json ... ```.
+- Không thêm giải thích hoặc văn bản ngoài JSON.
+- Kết quả phải tuân thủ đúng cấu trúc output được yêu cầu.
 
 NỘI DUNG CẦN XỬ LÝ:
 \"\"\"{content}\"\"\"

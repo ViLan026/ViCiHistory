@@ -11,7 +11,7 @@ from pathlib import Path
 import numpy as np
 from rank_bm25 import BM25Okapi
 
-from history_verifier_ai.app.schemas.evidence import EvidenceItem
+from app.schemas.evidence import EvidenceItem
 
 logger = logging.getLogger(__name__)
 

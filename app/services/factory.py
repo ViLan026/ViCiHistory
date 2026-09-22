@@ -7,23 +7,21 @@ import time
 from app.config import settings
 from app.services.bm25 import BM25Service
 from app.services.embedding import EmbeddingService
-from app.services.gemini import GeminiService
+from app.services.evidence_map import EvidenceMapService
+from app.services.ollama import OllamaService
 from app.services.qdrant import QdrantService
 from app.services.retrieval import RetrievalService
-from app.services.storage import StorageService
-# from app.services.verification import VerificationService
 
 logger = logging.getLogger(__name__)
 
 
 @dataclass
 class ServiceContainer:
-    gemini: GeminiService
-    # verifier: VerificationService
-    storage: StorageService
+    ollama: OllamaService
+    evidence_map: EvidenceMapService
 
     def close(self) -> None:
-        self.gemini.close()
+        self.ollama.close()
 
 
 def build_services() -> ServiceContainer:
@@ -43,19 +41,16 @@ def build_services() -> ServiceContainer:
         bm25_service=bm25,
     )
 
-    gemini = GeminiService()
+    ollama = OllamaService()
 
-    verifier = VerificationService(
-        gemini_service=gemini,
+    evidence_map = EvidenceMapService(
+        ollama_service=ollama,
         retrieval_service=retrieval,
     )
 
-    storage = StorageService()
-
-    logger.info("All services initialized in %.2fs.", time.perf_counter() - start)
+    logger.info("Core services initialized in %.2fs.", time.perf_counter() - start)
 
     return ServiceContainer(
-        gemini=gemini,
-        verifier=verifier,
-        storage=storage,
+        ollama=ollama,
+        evidence_map=evidence_map,
     )

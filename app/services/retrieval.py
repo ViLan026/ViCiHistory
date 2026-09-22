@@ -4,7 +4,7 @@ import logging
 
 from app.config import settings
 from app.exceptions import RetrievalServiceError
-# from app.schemas.verification import EvidenceItem
+from app.schemas.evidence import EvidenceItem
 from app.services.bm25 import BM25Service
 from app.services.embedding import EmbeddingService
 from app.services.qdrant import QdrantService
