@@ -10,13 +10,14 @@ from pathlib import Path
 
 import numpy as np
 from rank_bm25 import BM25Okapi
+from underthesea import word_tokenize
 
 from app.schemas.evidence import EvidenceItem
 
 logger = logging.getLogger(__name__)
 
 BM25_ARTIFACT_VERSION = 1
-BM25_TOKENIZER_VERSION = "raw_text_nfc_lower_regex_v1"
+BM25_TOKENIZER_VERSION = "underthesea_word_segment_nfc_lower_v1"
 
 
 class BM25Service:
@@ -29,8 +30,14 @@ class BM25Service:
 
     @staticmethod
     def _tokenize(text: str) -> list[str]:
-        text = unicodedata.normalize("NFC", text.lower())
-        return re.findall(r"\w+", text, flags=re.UNICODE)
+        text = unicodedata.normalize("NFC", text.lower().strip())
+
+        if not text:
+            return []
+
+        segmented_text = word_tokenize(text, format="text")
+
+        return re.findall(r"\w+", segmented_text, flags=re.UNICODE)
 
     @classmethod
     def build_and_save(

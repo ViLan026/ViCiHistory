@@ -3,145 +3,113 @@ from __future__ import annotations
 from app.config import settings
 
 
+
 def build_claim_extraction_prompt(content: str) -> str:
     return f"""
-Bạn là chuyên gia trích xuất phát biểu lịch sử trong một đoạn văn lịch sử.
-
-NHIỆM VỤ:
-Phân tích nội dung đầu vào và trích xuất các phát biểu lịch sử phù hợp để dùng làm truy vấn tìm nguồn sử liệu.
+Bạn là chuyên gia trích xuất các phát biểu lịch sử từ văn bản tiếng Việt để dùng làm truy vấn tìm nguồn sử liệu.
 
 Mỗi kết quả gồm:
-- source_text: đoạn nguyên văn trong nội dung đầu vào làm cơ sở cho claim.
-- claim: phát biểu lịch sử hoàn chỉnh, đủ ngữ cảnh và phù hợp cho semantic retrieval.
 
-MỤC TIÊU:
-Không tối ưu atomicity. Ưu tiên:
-1. Faithfulness: claim phải giữ đúng ý nghĩa của nội dung đầu vào.
-2. Sufficient context: claim phải giữ đủ ngữ cảnh để xác định đúng sự kiện khi truy xuất.
-3. Event coherence: các thông tin cùng mô tả một sự kiện hoặc một quan hệ lịch sử nên được giữ cùng nhau.
-4. Retrieval usefulness: claim phải chứa những thông tin quan trọng giúp tìm đúng đoạn sử liệu.
+* source_text: đoạn nguyên văn trong input làm cơ sở cho claim.
+* claim: phát biểu lịch sử hoàn chỉnh, đủ ngữ cảnh và phù hợp cho semantic retrieval.
 
-QUY TẮC TRÍCH XUẤT:
+QUY TẮC:
 
-1. Không ép một claim chỉ chứa một fact.
-Một claim có thể chứa nhiều thông tin về nhân vật, hành động, thời gian, địa điểm, lực lượng, nguyên nhân hoặc kết quả nếu các thông tin đó cùng mô tả một sự kiện hoặc một nội dung lịch sử thống nhất.
+1. Đọc toàn bộ input và trích xuất đầy đủ các sự kiện lịch sử đáng kể. Không mặc định một đoạn văn chỉ tạo một claim.
+2. Một đoạn có nhiều sự kiện tương đối độc lập thì phải tạo nhiều claim.
+3. Không tách quá nhỏ. Các thông tin về nhân vật, thời gian, địa điểm, hành động, lực lượng, nguyên nhân hoặc kết quả có thể giữ cùng một claim nếu chúng cùng mô tả một sự kiện.
+4. Nếu câu sau phụ thuộc câu trước qua các từ như "sau đó", "trước đó", "vì vậy", "sự kiện này", "ông", "vua", "họ"... phải đưa đủ ngữ cảnh cần thiết vào claim.
+5. Claim phải hiểu được khi đứng độc lập. Thay đại từ bằng thực thể cụ thể nếu xác định được từ input.
+6. Không bổ sung kiến thức bên ngoài hoặc tự sửa thông tin trong input.
+7. source_text phải được sao chép nguyên văn, liên tục từ input. Có thể gồm nhiều câu và được phép chồng lấp giữa các claim.
+8. Không trích xuất cảm xúc, câu hỏi tu từ, lời bình hoặc đánh giá chủ quan.
+9. Giữ thứ tự xuất hiện, không tạo claim trùng nhau, tối đa {settings.MAX_CLAIMS_PER_INPUT} claim.
 
-Ví dụ:
-"Trần Quốc Tuấn chỉ huy quân Đại Việt đánh bại quân Nguyên tại Bạch Đằng năm 1288."
+CÁCH QUYẾT ĐỊNH TÁCH:
 
-Phải giữ thành một claim hoàn chỉnh có đủ thông tin, không cần tách thành nhiều claim nhỏ
-
-2. Chỉ tách khi nội dung chứa các sự kiện hoặc phát biểu tương đối độc lập.
-Nếu việc tách không làm mất quan hệ thời gian, nguyên nhân, kết quả hoặc ngữ cảnh quan trọng thì có thể tách.
-Nếu việc tách làm mất thông tin cần thiết để xác định đúng sự kiện, phải giữ thông tin đó trong claim.
-
-3. Giữ quan hệ giữa các câu khi cần thiết.
-Nếu một câu phụ thuộc vào câu trước thông qua các từ như:"sau đó"; "trước đó"; "tiếp theo"; "vì vậy"; "do đó"; "sự kiện này"; "trận đánh đó"; "ông"; "ngài";
-hãy đưa ngữ cảnh cần thiết từ câu trước vào claim.
-
-Ví dụ:
-Input:
-"Lê Hoàn lên ngôi năm 980. Sau đó ông đem quân đánh Chiêm Thành."
-
-Claim cho sự kiện thứ hai nên là:
-"Sau khi lên ngôi năm 980, Lê Hoàn đem quân đánh Chiêm Thành."
-
-Không được rút thành:
-"Lê Hoàn đem quân đánh Chiêm Thành."
-
-vì như vậy làm mất quan hệ thời gian có trong nội dung đầu vào.
-
-4. Decontextualize vừa đủ.
-Claim phải hiểu được khi dùng độc lập làm truy vấn.
-Thay đại từ hoặc cụm phụ thuộc ngữ cảnh bằng thực thể cụ thể nếu thực thể đó được xác định rõ trong nội dung đầu vào.
-Không loại bỏ các thông tin ngữ cảnh có tác dụng xác định sự kiện.
-
-5. Không bổ sung kiến thức bên ngoài.
-Không tự thêm hoặc sửa thông tin như: nhân vật; thời gian; địa điểm; chức vụ; lực lượng; nguyên nhân; kết quả; quan hệ giữa các sự kiện;
-nếu thông tin đó không có trong nội dung đầu vào.
-
-6. source_text phải phản ánh đầy đủ phần văn bản dùng để tạo claim.
-Nếu claim cần thông tin từ nhiều câu liên tiếp để giữ đủ ngữ cảnh, source_text có thể chứa nhiều câu liên tiếp.
-source_text của các claim khác nhau được phép chồng lấp nhau.
-
-7. source_text phải:
-- được sao chép nguyên văn từ nội dung đầu vào;
-- là một đoạn liên tục;
-- không sửa từ;
-- không viết lại;
-- không decontextualize;
-- không ghép các đoạn không liên tiếp.
-
-8. Không trích xuất các : cảm xúc; câu hỏi tu từ; nhận xét chủ quan; lời bình; các đánh giá như "vĩ đại nhất", "hào hùng nhất", 
-"kiệt xuất nhất"; các claim vụn hoặc hiển nhiên không có giá trị tìm nguồn.
-
-9. Giữ thứ tự xuất hiện trong nội dung.
-Không tạo claim trùng nhau.
-Tối đa {settings.MAX_CLAIMS_PER_INPUT} claim.
-
-10. Khi cân nhắc có nên tách một phát biểu hay không, hãy hỏi:
-"Nếu tách ra, claim mới có mất một quan hệ lịch sử hoặc ngữ cảnh quan trọng cần thiết cho việc tìm đúng nguồn hay không?"
-Nếu có, không tách.
+* Nếu hai thông tin có thể được kiểm chứng độc lập và việc tách không làm mất ngữ cảnh quan trọng -> tách.
+* Nếu các thông tin cùng mô tả một sự kiện và tách ra làm mất ngữ cảnh -> giữ chung.
+* Trước khi trả kết quả, kiểm tra xem còn sự kiện đáng kể nào trong input chưa được tạo claim hay không.
 
 VÍ DỤ 1:
 
 Input:
-"Trần Quốc Tuấn chỉ huy quân Đại Việt đánh bại quân Nguyên tại Bạch Đằng năm 1288."
+"Lý Công Uẩn lên ngôi năm 1009. Năm 1010, ông quyết định dời đô từ Hoa Lư ra Đại La. Khi đến Đại La, nhà vua đổi tên nơi này thành Thăng Long."
 
 Output:
 {{
-  "claims": [
-    {{
-      "source_text": "Trần Quốc Tuấn chỉ huy quân Đại Việt đánh bại quân Nguyên tại Bạch Đằng năm 1288.",
-      "claim": "Trần Quốc Tuấn chỉ huy quân Đại Việt đánh bại quân Nguyên tại Bạch Đằng năm 1288."
-    }}
-  ]
+"claims": [
+{{
+"source_text": "Lý Công Uẩn lên ngôi năm 1009.",
+"claim": "Lý Công Uẩn lên ngôi năm 1009."
+}},
+{{
+"source_text": "Năm 1010, ông quyết định dời đô từ Hoa Lư ra Đại La.",
+"claim": "Năm 1010, Lý Công Uẩn quyết định dời đô từ Hoa Lư ra Đại La."
+}},
+{{
+"source_text": "Năm 1010, ông quyết định dời đô từ Hoa Lư ra Đại La. Khi đến Đại La, nhà vua đổi tên nơi này thành Thăng Long.",
+"claim": "Sau khi dời đô từ Hoa Lư ra Đại La năm 1010, Lý Công Uẩn đổi tên Đại La thành Thăng Long."
+}}
+]
 }}
 
 VÍ DỤ 2:
 
 Input:
-"Lê Hoàn lên ngôi năm 980. Sau đó ông đem quân đánh Chiêm Thành."
+"Năm 1285, quân Nguyên tiến vào Đại Việt. Trước sức tiến công của đối phương, triều đình nhà Trần rút khỏi Thăng Long. Sau đó quân Trần phản công tại Hàm Tử và Chương Dương. Các chiến thắng này góp phần buộc quân Nguyên phải rút khỏi Đại Việt."
 
 Output:
 {{
-  "claims": [
-    {{
-      "source_text": "Lê Hoàn lên ngôi năm 980.",
-      "claim": "Lê Hoàn lên ngôi năm 980."
-    }},
-    {{
-      "source_text": "Lê Hoàn lên ngôi năm 980. Sau đó ông đem quân đánh Chiêm Thành.",
-      "claim": "Sau khi lên ngôi năm 980, Lê Hoàn đem quân đánh Chiêm Thành."
-    }}
-  ]
+"claims": [
+{{
+"source_text": "Năm 1285, quân Nguyên tiến vào Đại Việt.",
+"claim": "Quân Nguyên tiến vào Đại Việt năm 1285."
+}},
+{{
+"source_text": "Năm 1285, quân Nguyên tiến vào Đại Việt. Trước sức tiến công của đối phương, triều đình nhà Trần rút khỏi Thăng Long.",
+"claim": "Trước cuộc tiến công của quân Nguyên vào Đại Việt năm 1285, triều đình nhà Trần rút khỏi Thăng Long."
+}},
+{{
+"source_text": "Sau đó quân Trần phản công tại Hàm Tử và Chương Dương.",
+"claim": "Quân Trần phản công tại Hàm Tử và Chương Dương."
+}},
+{{
+"source_text": "Sau đó quân Trần phản công tại Hàm Tử và Chương Dương. Các chiến thắng này góp phần buộc quân Nguyên phải rút khỏi Đại Việt.",
+"claim": "Các chiến thắng của quân Trần tại Hàm Tử và Chương Dương góp phần buộc quân Nguyên rút khỏi Đại Việt."
+}}
+]
 }}
 
 VÍ DỤ 3:
 
 Input:
-"Năm 1288, quân Nguyên tiến vào Đại Việt. Trần Quốc Tuấn tổ chức trận địa trên sông Bạch Đằng và sau đó đánh bại quân Nguyên."
+"Năm 1288, Trần Quốc Tuấn bố trí cọc trên sông Bạch Đằng, nhử quân Nguyên vào trận địa rồi tổ chức tiến công khi thủy triều rút, khiến quân Nguyên thất bại."
 
 Output:
 {{
-  "claims": [
-    {{
-      "source_text": "Năm 1288, quân Nguyên tiến vào Đại Việt.",
-      "claim": "Quân Nguyên tiến vào Đại Việt năm 1288."
-    }},
-    {{
-      "source_text": "Năm 1288, quân Nguyên tiến vào Đại Việt. Trần Quốc Tuấn tổ chức trận địa trên sông Bạch Đằng và sau đó đánh bại quân Nguyên.",
-      "claim": "Trong cuộc chiến với quân Nguyên năm 1288, Trần Quốc Tuấn tổ chức trận địa trên sông Bạch Đằng và đánh bại quân Nguyên."
-    }}
-  ]
+"claims": [
+{{
+"source_text": "Năm 1288, Trần Quốc Tuấn bố trí cọc trên sông Bạch Đằng, nhử quân Nguyên vào trận địa rồi tổ chức tiến công khi thủy triều rút, khiến quân Nguyên thất bại.",
+"claim": "Năm 1288, Trần Quốc Tuấn bố trí cọc trên sông Bạch Đằng, nhử quân Nguyên vào trận địa và tổ chức tiến công khi thủy triều rút, khiến quân Nguyên thất bại."
+}}
+]
 }}
 
 YÊU CẦU ĐẦU RA:
-- Chỉ trả về một JSON object hợp lệ.
-- Không sử dụng Markdown.
-- Không đặt JSON trong ```json ... ```.
-- Không thêm giải thích hoặc văn bản ngoài JSON.
-- Kết quả phải tuân thủ đúng cấu trúc output được yêu cầu.
+
+* Chỉ trả về JSON hợp lệ.
+* Không Markdown, không giải thích ngoài JSON.
+* Nếu không có claim phù hợp, trả về {{"claims": []}}.
+* Cấu trúc:
+  {{
+  "claims": [
+  {{
+  "source_text": "...",
+  "claim": "..."
+  }}
+  ]
+  }}
 
 NỘI DUNG CẦN XỬ LÝ:
 \"\"\"{content}\"\"\"

@@ -34,7 +34,7 @@ class Settings(BaseSettings):
     OLLAMA_URL: str = "http://localhost:11434"
     OLLAMA_MODEL: str = "qwen2.5:3b-instruct"
     OLLAMA_TEMPERATURE: float = Field(default=0.0, ge=0.0, le=2.0)
-    OLLAMA_TIMEOUT_SECONDS: float = Field(default=120.0, gt=0)
+    OLLAMA_TIMEOUT_SECONDS: float = Field(default=300.0, gt=0)
     OLLAMA_MAX_RETRIES: int = Field(default=2, ge=0)
 
     # Retrieval pipeline

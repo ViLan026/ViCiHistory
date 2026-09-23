@@ -14,11 +14,11 @@ HISTORICAL_SOURCES = {
         "source_id": "vstt",
         "s3_key": "books/VSTT.pdf",
     },
-    "Vương Triều Trần (1226-1400)": {
-        "source_id": "vtt",
-        "s3_key": "books/VTT.pdf",
-        "offset": 2,
-    },
+    # "Vương Triều Trần (1226-1400)": {
+    #     "source_id": "vtt",
+    #     "s3_key": "books/VTT.pdf",
+    #     "offset": 2,
+    # },
     "LỊCH SỪ VIỆT NAM - TẬP 1": {
         "source_id": "lsvn01",
         "s3_key": "books/LSVN_01.pdf",

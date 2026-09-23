@@ -9,6 +9,7 @@ sentencepiece==0.2.2
 
 qdrant-client==1.18.0
 rank-bm25==0.2.2
+underthesea==9.5.0
 
 PyMuPDF==1.26.4
 boto3
