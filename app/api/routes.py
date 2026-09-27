@@ -82,17 +82,34 @@ def get_source_excerpt(
             evidence_text=request_body.text,
         )
 
+        # return Response(
+        #     content=result.content,
+        #     media_type="application/pdf",
+        #     headers={
+        #         "Content-Disposition": f'inline; filename="{source_id}-excerpt.pdf"',
+        #         "Cache-Control": "no-store",
+        #         "X-Excerpt-Start-Page": str(result.start_pdf_page),
+        #         "X-Excerpt-End-Page": str(result.end_pdf_page),
+        #         "X-Target-Excerpt-Page": str(result.target_excerpt_page),
+        #         "X-Highlight-Mode": result.highlight_mode,
+        #     },
+        # )
+        headers = {
+            "Content-Disposition": f'inline; filename="{source_id}-excerpt.pdf"',
+            "Cache-Control": "no-store",
+            "X-Excerpt-Start-Page": str(result.start_pdf_page),
+            "X-Excerpt-End-Page": str(result.end_pdf_page),
+            "X-Target-Excerpt-Page": str(result.target_excerpt_page),
+            "X-Highlight-Mode": result.highlight_mode,
+        }
+
+        if result.highlight_y_ratio is not None:
+            headers["X-Highlight-Y-Ratio"] = f"{result.highlight_y_ratio:.6f}"
+
         return Response(
             content=result.content,
             media_type="application/pdf",
-            headers={
-                "Content-Disposition": f'inline; filename="{source_id}-excerpt.pdf"',
-                "Cache-Control": "no-store",
-                "X-Excerpt-Start-Page": str(result.start_pdf_page),
-                "X-Excerpt-End-Page": str(result.end_pdf_page),
-                "X-Target-Excerpt-Page": str(result.target_excerpt_page),
-                "X-Highlight-Mode": result.highlight_mode,
-            },
+            headers=headers,
         )
 
     except ValueError as exc:

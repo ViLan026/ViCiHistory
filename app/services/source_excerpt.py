@@ -39,6 +39,7 @@ class PdfExcerptResult:
     end_pdf_page: int
     target_excerpt_page: int
     highlight_mode: str
+    highlight_y_ratio: float | None
 
 
 def tokenize(text: str) -> list[str]:
@@ -249,28 +250,68 @@ class SourceExcerptService:
                 to_page=end_page - 1,
             )
 
+            # refs = self._collect_token_refs(source_document, pdf_pages)
+            # matched_refs, highlight_mode = self._find_match(refs, evidence_text)
+
+            # if matched_refs:
+            #     self._add_highlights(excerpt, matched_refs, start_page)
+
+            # target_excerpt_page = min(pdf_pages) - start_page + 1
+
             refs = self._collect_token_refs(source_document, pdf_pages)
             matched_refs, highlight_mode = self._find_match(refs, evidence_text)
+
+            highlight_y_ratio: float | None = None
 
             if matched_refs:
                 self._add_highlights(excerpt, matched_refs, start_page)
 
-            target_excerpt_page = min(pdf_pages) - start_page + 1
+                target_pdf_page = matched_refs[0].page
+                target_refs = [ref for ref in matched_refs if ref.page == target_pdf_page]
+                target_page = source_document.load_page(target_pdf_page - 1)
+
+                if target_refs and target_page.rect.height > 0:
+                    y0 = min(ref.rect.y0 for ref in target_refs)
+                    y1 = max(ref.rect.y1 for ref in target_refs)
+                    highlight_y_ratio = max(0.0, min(1.0, ((y0 + y1) / 2) / target_page.rect.height))
+            else:
+                target_pdf_page = min(pdf_pages)
+
+            target_excerpt_page = target_pdf_page - start_page + 1
 
             content = excerpt.tobytes(
                 garbage=3,
                 deflate=True,
             )
 
+            # logger.info(
+            #     "Built PDF excerpt. source_id=%s pages=%d-%d target=%s highlight=%s size=%d",
+            #     source_id,
+            #     start_page,
+            #     end_page,
+            #     pdf_pages,
+            #     highlight_mode,
+            #     len(content),
+            # )
+
             logger.info(
-                "Built PDF excerpt. source_id=%s pages=%d-%d target=%s highlight=%s size=%d",
+                "Built PDF excerpt. source_id=%s pages=%d-%d target_page=%d highlight=%s y_ratio=%s size=%d",
                 source_id,
                 start_page,
                 end_page,
-                pdf_pages,
+                target_excerpt_page,
                 highlight_mode,
+                highlight_y_ratio,
                 len(content),
             )
+
+            # return PdfExcerptResult(
+            #     content=content,
+            #     start_pdf_page=start_page,
+            #     end_pdf_page=end_page,
+            #     target_excerpt_page=target_excerpt_page,
+            #     highlight_mode=highlight_mode,
+            # )
 
             return PdfExcerptResult(
                 content=content,
@@ -278,6 +319,7 @@ class SourceExcerptService:
                 end_pdf_page=end_page,
                 target_excerpt_page=target_excerpt_page,
                 highlight_mode=highlight_mode,
+                highlight_y_ratio=highlight_y_ratio,
             )
 
         finally:
