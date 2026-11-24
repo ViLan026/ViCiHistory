@@ -1,4 +1,3 @@
-# History Verifier AI
 
 A FastAPI service for the AI Riser project.
 
@@ -37,13 +36,6 @@ Example response shape:
 ```
 
 `source_text` is kept separately from the normalized `claim` so a frontend can highlight the exact source sentence while retrieval uses a standalone claim.
-
-## Local development
-
-1. Copy `.env.example` to `.env` and fill in your own secrets.
-2. Create a virtual environment.
-3. Install CPU PyTorch and the requirements.
-4. Start Uvicorn:
 
 ```bash
 python -m uvicorn app.main:app --reload --port 8080
