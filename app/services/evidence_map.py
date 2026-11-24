@@ -10,8 +10,9 @@ from app.schemas.evidence import (
     EvidenceMapResponse,
     ExtractedClaim,
 )
-from app.services.ollama import OllamaService
+# from app.services.ollama import OllamaService
 from app.services.retrieval import RetrievalService
+from history_verifier_ai.app.services.gemini import GeminiService
 
 logger = logging.getLogger(__name__)
 
@@ -22,10 +23,10 @@ _END_PUNCTUATION_PATTERN = re.compile(r"[.!?…]+$")
 class EvidenceMapService:
     def __init__(
         self,
-        ollama_service: OllamaService,
+        gemini_service: GeminiService,
         retrieval_service: RetrievalService,
     ) -> None:
-        self._ollama_service = ollama_service
+        self._gemini_service= gemini_service
         self._retrieval_service = retrieval_service
 
     @staticmethod
@@ -43,7 +44,7 @@ class EvidenceMapService:
 
         prompt = build_claim_extraction_prompt(content)
 
-        output = self._ollama_service.extract_claims(prompt)
+        output = self._gemini_service.extract_claims(prompt)
 
         seen: set[str] = set()
         claims: list[ExtractedClaim] = []

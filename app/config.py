@@ -27,15 +27,11 @@ class Settings(BaseSettings):
     QDRANT_COLLECTION_NAME: str = "history_sources_aiteamvn_256"
     QDRANT_TIMEOUT_SECONDS: float = Field(default=60.0, gt=0)
 
+    GEMINI_API_KEY: str
+    GEMINI_MODEL: str = "gemini-3.1-flash-lite" 
+
     # Embedding
     EMBEDDING_MODEL: str = "AITeamVN/Vietnamese_Embedding"
-
-    # Ollama / Qwen
-    OLLAMA_URL: str = "http://localhost:11434"
-    OLLAMA_MODEL: str = "qwen2.5:3b-instruct"
-    OLLAMA_TEMPERATURE: float = Field(default=0.0, ge=0.0, le=2.0)
-    OLLAMA_TIMEOUT_SECONDS: float = Field(default=300.0, gt=0)
-    OLLAMA_MAX_RETRIES: int = Field(default=2, ge=0)
 
     # Retrieval pipeline
     TOP_K: int = Field(default=5, gt=0, le=20)
@@ -49,20 +45,15 @@ class Settings(BaseSettings):
 
     BM25_INDEX_PATH: str = "app/data/bm25_index.pkl"
 
-    # AWS / S3
-    AWS_REGION: str = "ap-southeast-1"
-    S3_BUCKET_NAME: str | None = None
-    PDF_URL_EXPIRATION_SECONDS: int = Field(default=3600, gt=0)
-
-    SOURCE_CACHE_DIR: str = ".cache/history_sources"
-    PDF_EXCERPT_PAGE_COUNT: int = Field(default=7, ge=1, le=15)
+    # SOURCE_CACHE_DIR: str = ".cache/history_sources"
+    PDF_EXCERPT_PAGE_COUNT: int = Field(default=5, ge=1, le=15)
 
     @field_validator(
         "QDRANT_URL",
         "QDRANT_COLLECTION_NAME",
         "EMBEDDING_MODEL",
-        "OLLAMA_URL",
-        "OLLAMA_MODEL",
+        # "OLLAMA_URL",
+        # "OLLAMA_MODEL",
         "BM25_INDEX_PATH",
     )
     @classmethod
