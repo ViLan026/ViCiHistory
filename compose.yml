@@ -18,7 +18,7 @@ services:
     depends_on:
       - ollama
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
     volumes:
       - source_cache:/app/.cache/history_sources
     networks:

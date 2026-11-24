@@ -1,25 +1,10 @@
 # History Verifier AI
 
-A small FastAPI service for the AI Riser project.
+A FastAPI service for the AI Riser project.
 
 Pipeline:
 
-`input text -> claim extraction (Gemini) -> embedding -> Qdrant retrieval -> claim verification (Gemini)`
-
-## API
-
-### Health
-
-```http
-GET /health
-```
-
-### retrieval 
-
-```http
-POST /api/v1/evidence-map
-Content-Type: application/json
-```
+`input text -> claim extraction (Gemini) -> embedding -> Qdrant retrieval -> Extract pages and highlight evidence`
 
 ```json
 {
@@ -82,15 +67,4 @@ The Qdrant payload reader expects the existing collection fields used by the old
 - `pages`
 - `footnotes`
 
-## Docker
 
-```bash
-docker build -t history-verifier-ai .
-docker run --env-file .env -p 8080:8080 history-verifier-ai
-```
-
-The Docker image pre-downloads the embedding model at build time. This makes the image larger but avoids downloading the Hugging Face model during each Cloud Run cold start.
-
-## Secrets
-
-Never commit `.env` or real API keys. On Cloud Run, provide `GEMINI_API_KEY`, `QDRANT_URL`, and `QDRANT_API_KEY` through environment variables / Secret Manager.
