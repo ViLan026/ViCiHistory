@@ -45,15 +45,25 @@ class Settings(BaseSettings):
 
     BM25_INDEX_PATH: str = "app/data/bm25_index.pkl"
 
-    # SOURCE_CACHE_DIR: str = ".cache/history_sources"
+    SOURCE_CACHE_DIR: str = ".cache/history_sources"
     PDF_EXCERPT_PAGE_COUNT: int = Field(default=5, ge=1, le=15)
+
+    R2_ACCOUNT_ID: str
+    R2_ACCESS_KEY_ID: str
+    R2_SECRET_ACCESS_KEY: str
+    R2_BUCKET_NAME: str
+    # R2_ENDPOINT_URL: str = ""
+    # R2_PRESIGNED_URL_EXPIRATION_SECONDS: int = Field(default=3600, ge=60, le=604800)
+    SOURCE_CACHE_DIR: str = ".cache/history_sources"
+
+
+    # Logging
+    LOG_LEVEL: str = "INFO"
 
     @field_validator(
         "QDRANT_URL",
         "QDRANT_COLLECTION_NAME",
         "EMBEDDING_MODEL",
-        # "OLLAMA_URL",
-        # "OLLAMA_MODEL",
         "BM25_INDEX_PATH",
     )
     @classmethod

@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 
 import logging
@@ -17,7 +16,7 @@ logger = logging.getLogger(__name__)
 class GeminiService:
     def __init__(self) -> None:
         self._client = genai.Client(
-            api_key=settings.GEMINI_API_KEY
+            api_key=settings.GEMINI_API_KEY,
         )
         self._model = settings.GEMINI_MODEL
 
@@ -45,24 +44,27 @@ class GeminiService:
             )
 
             if not response.text:
-                raise ValueError(
-                    "Gemini returned an empty response."
-                )
+                raise ValueError("Gemini returned an empty response.")
 
             return ClaimExtractionOutput.model_validate_json(
-                response.text
+                response.text,
             )
 
-        except (
-            ValidationError,
-            ValueError,
-            Exception,
-        ) as exc:
-            logger.exception(
-                "Gemini claim extraction failed."
-            )
+        except (ValidationError, ValueError) as exc:
+            logger.exception("Gemini response validation failed.")
+
+            raise LLMServiceError(
+                "Gemini returned an invalid response.",
+                operation="claim_extraction",
+            ) from exc
+
+        except Exception as exc:
+            logger.exception("Gemini request failed.")
 
             raise LLMServiceError(
                 "Gemini request failed.",
                 operation="claim_extraction",
             ) from exc
+
+    def close(self) -> None:
+        self._client.close()

@@ -12,7 +12,7 @@ from app.schemas.evidence import (
 )
 # from app.services.ollama import OllamaService
 from app.services.retrieval import RetrievalService
-from history_verifier_ai.app.services.gemini import GeminiService
+from app.services.gemini import GeminiService
 
 logger = logging.getLogger(__name__)
 

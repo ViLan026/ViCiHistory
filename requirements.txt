@@ -12,15 +12,7 @@ rank-bm25==0.2.2
 underthesea==9.5.0
 
 PyMuPDF==1.26.4
-boto3
 
+google-genai
 httpx
-
-
-
-
-
-
-
-
-# Remove-Item -Recurse -Force .venv; python -m venv .venv; .\.venv\Scripts\Activate.ps1; pip install -r requirements.txt
+numpy
