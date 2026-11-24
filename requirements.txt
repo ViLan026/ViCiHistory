@@ -16,3 +16,4 @@ PyMuPDF==1.26.4
 google-genai
 httpx
 numpy
+boto3

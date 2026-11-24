@@ -9,14 +9,12 @@ from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
 
-import boto3
 import fitz
-from botocore.config import Config
-from botocore.exceptions import BotoCoreError, ClientError
 
 from app.config import settings
 from app.data.sources import SOURCE_BY_ID
 from app.exceptions import StorageServiceError
+from app.services.storage import StorageService
 
 logger = logging.getLogger(__name__)
 
@@ -47,22 +45,12 @@ def tokenize(text: str) -> list[str]:
 
 
 class SourceExcerptService:
-    def __init__(self) -> None:
-        if not settings.S3_BUCKET_NAME:
-            raise ValueError("S3_BUCKET_NAME must be configured.")
-
-        self._bucket_name = settings.S3_BUCKET_NAME
+    def __init__(self, storage_service: StorageService) -> None:
+        self._storage = storage_service
         self._cache_dir = Path(settings.SOURCE_CACHE_DIR)
         self._cache_dir.mkdir(parents=True, exist_ok=True)
         self._download_lock = threading.Lock()
-
-        self._client = boto3.client(
-            "s3",
-            region_name=settings.AWS_REGION,
-            config=Config(signature_version="s3v4", s3={"addressing_style": "virtual"}),
-        )
-
-        logger.info("Source excerpt service initialized. bucket=%s cache=%s", self._bucket_name, self._cache_dir)
+        logger.info("Source excerpt service initialized. cache=%s", self._cache_dir)
 
     def _get_source(self, source_id: str) -> dict:
         source = SOURCE_BY_ID.get(source_id)
@@ -73,52 +61,31 @@ class SourceExcerptService:
         return source
 
     def _get_pdf_path(self, source_id: str) -> Path:
-        source = self._get_source(source_id)
+        self._get_source(source_id)
         path = self._cache_dir / f"{source_id}.pdf"
-
         if path.exists() and path.stat().st_size > 0:
             return path
-
         with self._download_lock:
             if path.exists() and path.stat().st_size > 0:
                 return path
-
-            logger.info("Downloading historical PDF from S3. source_id=%s key=%s", source_id, source["s3_key"])
-
-            temp_file = tempfile.NamedTemporaryFile(
-                mode="wb",
-                suffix=".pdf.part",
-                prefix=f"{source_id}_",
-                dir=self._cache_dir,
-                delete=False,
-            )
+            temp_file = tempfile.NamedTemporaryFile(mode="wb", suffix=".pdf.part", prefix=f"{source_id}_", dir=self._cache_dir, delete=False)
             temp_path = Path(temp_file.name)
             temp_file.close()
-
             try:
-                self._client.download_file(
-                    Bucket=self._bucket_name,
-                    Key=source["s3_key"],
-                    Filename=str(temp_path),
-                )
-
+                logger.info("Downloading historical PDF from storage. source_id=%s", source_id)
+                self._storage.download_pdf(source_id, temp_path)
                 if not temp_path.exists() or temp_path.stat().st_size == 0:
                     raise StorageServiceError(f"Downloaded source is empty: {source_id}")
-
                 os.replace(temp_path, path)
                 logger.info("Historical PDF cached. source_id=%s size=%d", source_id, path.stat().st_size)
                 return path
-
             except StorageServiceError:
                 raise
-
-            except (BotoCoreError, ClientError, OSError) as exc:
-                logger.exception("Failed to download source from S3. source_id=%s", source_id)
-                raise StorageServiceError(f"Could not download historical source: {source_id}") from exc
-
+            except OSError as exc:
+                logger.exception("Failed to cache historical PDF. source_id=%s", source_id)
+                raise StorageServiceError(f"Could not cache historical source: {source_id}") from exc
             finally:
-                if temp_path.exists():
-                    temp_path.unlink(missing_ok=True)
+                temp_path.unlink(missing_ok=True)
 
     @staticmethod
     def _build_page_window(target_pages: list[int], page_count: int) -> tuple[int, int]:

@@ -62,6 +62,7 @@ class R2StorageService(StorageService):
             if not destination_path.exists() or destination_path.stat().st_size == 0:
                 raise StorageServiceError(f"Downloaded source is empty: {source_id}")
         except StorageServiceError:
+            destination_path.unlink(missing_ok=True)
             raise
         except (BotoCoreError, ClientError, OSError) as exc:
             destination_path.unlink(missing_ok=True)

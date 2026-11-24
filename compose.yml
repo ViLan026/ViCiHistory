@@ -11,25 +11,27 @@ services:
     env_file:
       - .env
 
+
     environment:
       APP_ENV: production
       APP_HOST: 0.0.0.0
       PORT: 8080
       SOURCE_CACHE_DIR: /app/.cache/history_sources
+      BM25_INDEX_PATH: /app/runtime/bm25/bm25_index.pkl
 
     ports:
       - "8080:8080"
 
     volumes:
       - source_cache:/app/.cache/history_sources
-      - bm25_data:/app/runtime/bm25
+      - ./app/data:/app/runtime/bm25:ro
 
     networks:
       - history_ai
 
+
 volumes:
   source_cache:
-  bm25_data:
 
 networks:
   history_ai:

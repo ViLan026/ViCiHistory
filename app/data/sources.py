@@ -4,88 +4,88 @@ from __future__ import annotations
 HISTORICAL_SOURCES = {
     "Đại Việt Sử Ký Toàn Thư": {
         "source_id": "dvsk",
-        "object_key": "books/DVSK.pdf",
+        "object_key": "book/DVSK.pdf",
     },
     "Khâm Định Việt Sử Thông Giám Cương Mục": {
         "source_id": "kdvstgcm",
-        "object_key": "books/KDVSTGCM.pdf",
+        "object_key": "book/KDVSTGCM.pdf",
     },
     "Việt Sử Toàn Thư": {
         "source_id": "vstt",
-        "object_key": "books/VSTT.pdf",
+        "object_key": "book/VSTT.pdf",
     },
     # "Vương Triều Trần (1226-1400)": {
     #     "source_id": "vtt",
-    #     "object_key": "books/VTT.pdf",
+    #     "object_key": "book/VTT.pdf",
     #     "offset": 2,
     # },
     "LỊCH SỪ VIỆT NAM - TẬP 1": {
         "source_id": "lsvn01",
-        "object_key": "books/LSVN_01.pdf",
+        "object_key": "book/LSVN_01.pdf",
         "offset": 2,
     },
     "LỊCH SỪ VIỆT NAM - TẬP 2": {
         "source_id": "lsvn02",
-        "object_key": "books/LSVN_02.pdf",
+        "object_key": "book/LSVN_02.pdf",
         "offset": -1,
     },
     "LỊCH SỪ VIỆT NAM - TẬP 3": {
         "source_id": "lsvn03",
-        "object_key": "books/LSVN_03.pdf",
+        "object_key": "book/LSVN_03.pdf",
     },
     "LỊCH SỪ VIỆT NAM - TẬP 4": {
         "source_id": "lsvn04",
-        "object_key": "books/LSVN_04.pdf",
+        "object_key": "book/LSVN_04.pdf",
         "offset": 1,
     },
     "LỊCH SỪ VIỆT NAM - TẬP 5": {
         "source_id": "lsvn05",
-        "object_key": "books/LSVN_05.pdf",
+        "object_key": "book/LSVN_05.pdf",
         "offset": 1,
     },
     "LỊCH SỪ VIỆT NAM - TẬP 6": {
         "source_id": "lsvn06",
-        "object_key": "books/LSVN_06.pdf",
+        "object_key": "book/LSVN_06.pdf",
         "offset": 1,
     },
     "LỊCH SỪ VIỆT NAM - TẬP 7": {
         "source_id": "lsvn07",
-        "object_key": "books/LSVN_07.pdf",
+        "object_key": "book/LSVN_07.pdf",
     },
     "LỊCH SỪ VIỆT NAM - TẬP 8": {
         "source_id": "lsvn08",
-        "object_key": "books/LSVN_08.pdf",
+        "object_key": "book/LSVN_08.pdf",
     },
     "LỊCH SỪ VIỆT NAM - TẬP 9": {
         "source_id": "lsvn09",
-        "object_key": "books/LSVN_09.pdf",
+        "object_key": "book/LSVN_09.pdf",
     },
     "LỊCH SỪ VIỆT NAM - TẬP 10": {
         "source_id": "lsvn10",
-        "object_key": "books/LSVN_10.pdf",
+        "object_key": "book/LSVN_10.pdf",
     },
     "LỊCH SỪ VIỆT NAM - TẬP 11": {
         "source_id": "lsvn11",
-        "object_key": "books/LSVN_11.pdf",
+        "object_key": "book/LSVN_11.pdf",
     },
     "LỊCH SỪ VIỆT NAM - TẬP 12": {
         "source_id": "lsvn12",
-        "object_key": "books/LSVN_12.pdf",
+        "object_key": "book/LSVN_12.pdf",
         "offset": 2,
     },
     "LỊCH SỪ VIỆT NAM - TẬP 13": {
         "source_id": "lsvn13",
-        "object_key": "books/LSVN_13.pdf",
+        "object_key": "book/LSVN_13.pdf",
         "offset": 2,
     },
     "LỊCH SỪ VIỆT NAM - TẬP 14": {
         "source_id": "lsvn14",
-        "object_key": "books/LSVN_14.pdf",
+        "object_key": "book/LSVN_14.pdf",
         "offset": 2,
     },
     "LỊCH SỪ VIỆT NAM - TẬP 15": {
         "source_id": "lsvn15",
-        "object_key": "books/LSVN_15.pdf",
+        "object_key": "book/LSVN_15.pdf",
         "offset": 2,
     }
     }
