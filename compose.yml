@@ -20,7 +20,7 @@ services:
       BM25_INDEX_PATH: /app/runtime/bm25/bm25_index.pkl
 
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
 
     volumes:
       - source_cache:/app/.cache/history_sources

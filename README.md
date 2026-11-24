@@ -1,62 +1,62 @@
 
-A FastAPI service for the AI Riser project.
+# ViCiHistory – Vietnamese Historical Evidence Retrieval
 
-Pipeline:
+ViCiHistory is an AI-powered backend service designed to retrieve historical evidence from Vietnamese historical documents.
 
-`input text -> claim extraction (Gemini) -> embedding -> Qdrant retrieval -> Extract pages and highlight evidence`
+The system analyzes user-submitted historical text, extracts independent factual claims, and searches a collection of digitized historical sources to identify relevant evidence.
 
-```json
-{
-  "content": "Năm 1285 quân Đại Việt đánh bại quân Nguyên tại Bạch Đằng."
-}
-```
+By combining **Dense Semantic Search** with **Sparse Keyword Search (BM25)**, ViCiHistory aims to improve evidence retrieval across historical documents with different writing styles and vocabulary.
 
-Example response shape:
+The service also generates PDF excerpts and highlights matching passages, allowing users to inspect the original historical sources.
 
-```json
-{
-  "claims": [
-    {
-      "id": "claim_1",
-      "source_text": "Năm 1285 quân Đại Việt đánh bại quân Nguyên tại Bạch Đằng.",
-      "claim": "Quân Đại Việt đánh bại quân Nguyên tại Bạch Đằng vào năm 1285.",
-      "evidence": [
-        {
-          "chunk_id": "...",
-          "score": 0.82,
-          "book_name": "Đại Việt Sử Ký Toàn Thư",
-          "pages": [198],
-          "text": "...",
-          "footnotes": null
-        }
-      ]
-    }
-  ]
-}
-```
+## Features
 
-`source_text` is kept separately from the normalized `claim` so a frontend can highlight the exact source sentence while retrieval uses a standalone claim.
+- **Historical Claim Extraction:** Uses Google Gemini to extract meaningful historical claims from Vietnamese text.
+- **Claim Normalization:** Converts extracted statements into standalone claims while preserving their original source text.
+- **Hybrid Retrieval:** Combines semantic vector search and BM25 keyword search to retrieve relevant historical passages.
+- **Vietnamese Text Processing:** Uses Underthesea for Vietnamese word segmentation in the BM25 pipeline.
 
-```bash
-python -m uvicorn app.main:app --reload --port 8080
-```
 
-Open Swagger at `http://localhost:8080/docs`.
+### Hybrid Score Calculation
 
-## Important compatibility rule
-
-`EMBEDDING_MODEL` must be the same model used when the Qdrant collection was created. The default is:
+The system normalizes the scores from both retrieval methods and combines them using a configurable weighted formula:
 
 ```text
-AITeamVN/Vietnamese_Embedding
+Hybrid Score = α × Dense Score + (1 - α) × BM25 Score
 ```
 
-The Qdrant payload reader expects the existing collection fields used by the old project:
+Where:
 
-- `raw_text` (preferred) or `overlap_text`
-- `chunk_id`
-- `book_name`
-- `pages`
-- `footnotes`
+- `α` controls the contribution of dense retrieval.
+- `1 - α` controls the contribution of BM25 retrieval.
 
+The system then sorts the merged candidates and returns the highest-ranked evidence passages.
 
+## Historical Source Collection
+
+The application currently defines mappings for the following historical documents:
+
+- Đại Việt Sử Ký Toàn Thư
+- Khâm Định Việt Sử Thông Giám Cương Mục
+- Việt Sử Toàn Thư
+- Lịch Sử Việt Nam – 15 quyển.
+
+### Run the Application
+
+```bash
+python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8080
+```
+
+### Original Source Verification
+
+Retrieved passages should be treated as research references rather than automatic proof of historical correctness.
+
+Users should inspect the original historical document, surrounding context, page references, and footnotes before drawing conclusions.
+
+An empty evidence result does not necessarily mean that a historical claim is false.
+
+## License
+
+No license has currently been specified for this repository.
+
+Please contact the repository owner for permission to use, modify, or distribute the project.
